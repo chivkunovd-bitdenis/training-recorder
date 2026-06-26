@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Training Recorder — тестовая страница</title>
+    <style>
+      body {
+        font-family: system-ui, sans-serif;
+        margin: 24px;
+      }
+      .card {
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        padding: 16px;
+        max-width: 480px;
+      }
+      dialog,
+      #client-modal {
+        border: 1px solid #ccc;
+        border-radius: 8px;
+        padding: 16px;
+        width: 360px;
+      }
+      label {
+        display: block;
+        margin-top: 12px;
+      }
+      .row {
+        margin-top: 16px;
+        display: flex;
+        gap: 8px;
+      }
+    </style>
+  </head>
+  <body>
+    <section class="card" id="client-section">
+      <h1>Создание клиента</h1>
+      <p>Тестовая форма для проверки content script.</p>
+
+      <form id="client-form">
+        <label for="company-name">Название</label>
+        <input id="company-name" name="companyName" placeholder="Название компании" />
+
+        <label for="client-email">Email</label>
+        <input
+          id="client-email"
+          name="email"
+          type="email"
+          autocomplete="email"
+          placeholder="email@company.ru"
+        />
+
+        <label for="client-phone">Телефон</label>
+        <input
+          id="client-phone"
+          name="phone"
+          type="tel"
+          autocomplete="tel"
+          placeholder="+7 900 000-00-00"
+        />
+
+        <label for="client-password">Пароль</label>
+        <input
+          id="client-password"
+          name="password"
+          type="password"
+          autocomplete="current-password"
+          placeholder="Пароль"
+        />
+
+        <div data-sensitive>
+          <label for="secret-note">Секретная заметка</label>
+          <input id="secret-note" name="secretNote" placeholder="Только для теста data-sensitive" />
+        </div>
+
+        <label for="client-type">Тип клиента</label>
+        <select id="client-type" name="clientType">
+          <option value="">Выберите тип</option>
+          <option value="b2b">B2B</option>
+          <option value="b2c">B2C</option>
+        </select>
+
+        <div class="row">
+          <button type="button" id="open-modal">Открыть модалку</button>
+          <button type="submit" id="save-client">Сохранить</button>
+        </div>
+      </form>
+    </section>
+
+    <div id="client-modal" role="dialog" aria-modal="true" hidden>
+      <h2>Новый клиент</h2>
+      <p>Подтвердите создание клиента.</p>
+      <button type="button" id="close-modal">Закрыть</button>
+    </div>
+
+    <script>
+      document.getElementById("open-modal").addEventListener("click", () => {
+        const modal = document.getElementById("client-modal");
+        modal.hidden = false;
+      });
+      document.getElementById("close-modal").addEventListener("click", () => {
+        document.getElementById("client-modal").hidden = true;
+      });
+      document.getElementById("client-form").addEventListener("submit", (event) => {
+        event.preventDefault();
+      });
+    </script>
+  </body>
+</html>

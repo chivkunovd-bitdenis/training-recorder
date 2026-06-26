@@ -1,0 +1,22 @@
+{
+  "manifest_version": 3,
+  "name": "Training Recorder",
+  "version": "0.1.0",
+  "description": "Запись обучения по веб-интерфейсу для генерации инструкций",
+  "permissions": ["offscreen", "activeTab", "scripting", "storage", "unlimitedStorage", "tabs"],
+  "host_permissions": ["<all_urls>"],
+  "background": {
+    "service_worker": "service-worker.js",
+    "type": "module"
+  },
+  "action": {
+    "default_title": "Training Recorder",
+    "default_popup": "popup/popup.html"
+  },
+  "web_accessible_resources": [
+    {
+      "resources": ["content/net-hook.js"],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}

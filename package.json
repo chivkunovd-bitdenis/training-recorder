@@ -1,0 +1,17 @@
+{
+  "name": "training-recorder",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/timeline-contract.test.mjs tests/timeline-types.test.ts tests/extension-t02.test.mjs tests/extension-t11.test.mjs tests/content-t12.test.mjs tests/content-t13.test.mjs tests/stabilizer-t14.test.mjs tests/popup-t15.test.mjs tests/upload-t31.test.mjs tests/annotation-t32.test.mjs tests/annotation-hidpi.test.mjs",
+    "typecheck": "tsc --noEmit",
+    "check": "npm run typecheck && npm test"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.21",
+    "ajv": "^8.17.1",
+    "ajv-formats": "^3.0.1",
+    "jsdom": "^26.1.0",
+    "typescript": "^5.8.3"
+  }
+}

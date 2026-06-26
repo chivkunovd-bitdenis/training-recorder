@@ -1,0 +1,156 @@
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, sans-serif;
+  background: #f7f7f8;
+  color: #1a1a1a;
+}
+
+.popup {
+  width: 320px;
+  padding: 16px;
+}
+
+h1 {
+  margin: 0 0 8px;
+  font-size: 16px;
+}
+
+.status {
+  margin: 0 0 12px;
+  font-size: 13px;
+  color: #555;
+}
+
+.consent-panel {
+  margin: 0 0 12px;
+  padding: 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  background: #fff;
+}
+
+.consent-title {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.consent-intro {
+  margin: 0 0 4px;
+  font-size: 12px;
+}
+
+.consent-list {
+  margin: 0 0 8px 18px;
+  padding: 0;
+  font-size: 12px;
+  color: #374151;
+}
+
+.consent-note {
+  margin: 0 0 10px;
+  font-size: 11px;
+  line-height: 1.45;
+  color: #6b7280;
+}
+
+.consent-checkbox {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  font-size: 12px;
+  line-height: 1.4;
+  cursor: pointer;
+}
+
+.consent-checkbox input {
+  margin-top: 2px;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+}
+
+button {
+  border: none;
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.actions button {
+  flex: 1;
+}
+
+#startBtn {
+  background: #2563eb;
+  color: #fff;
+}
+
+#startBtn:disabled {
+  background: #93c5fd;
+  cursor: not-allowed;
+}
+
+#stopBtn {
+  background: #e5e7eb;
+  color: #111;
+}
+
+#stopBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.delete-btn {
+  width: 100%;
+  margin-top: 10px;
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.delete-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.backend-url {
+  display: block;
+  margin-top: 12px;
+  font-size: 12px;
+}
+
+.backend-url span {
+  display: block;
+  margin-bottom: 4px;
+  color: #374151;
+}
+
+.backend-url input {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 12px;
+}
+
+.editor-btn {
+  width: 100%;
+  margin-top: 10px;
+  background: #0f766e;
+  color: #fff;
+}
+
+.editor-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.error {
+  margin: 12px 0 0;
+  font-size: 12px;
+  color: #b91c1c;
+}

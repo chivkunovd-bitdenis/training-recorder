@@ -1,0 +1,10 @@
+# Локально / на сервере без домена: http://localhost
+:80 {
+	reverse_proxy api:8000
+}
+
+# Прод с доменом: раскомментируйте и подставьте домен + email для TLS
+# docs.example.com {
+# 	reverse_proxy api:8000
+# 	email you@example.com
+# }

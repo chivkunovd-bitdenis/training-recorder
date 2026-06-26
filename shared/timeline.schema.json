@@ -1,0 +1,239 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://training-recorder.local/timeline.schema.json",
+  "title": "Training Recorder Timeline",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["meta", "events", "screenshots"],
+  "properties": {
+    "meta": { "$ref": "#/$defs/RecordingMeta" },
+    "events": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/RecEvent" }
+    },
+    "screenshots": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/Screenshot" }
+    },
+    "transcript": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/TranscriptSegment" }
+    },
+    "generatedDoc": { "$ref": "#/$defs/GeneratedDoc" }
+  },
+  "$defs": {
+    "RecordingMeta": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "recordingId",
+        "t0",
+        "url",
+        "title",
+        "durationMs",
+        "userAgent",
+        "videoStartOffsetMs",
+        "micStartOffsetMs",
+        "videoDurationMs",
+        "micDurationMs"
+      ],
+      "properties": {
+        "recordingId": { "type": "string", "pattern": "^rec-[A-Za-z0-9_-]{1,80}$" },
+        "t0": { "type": "number" },
+        "url": { "type": "string", "minLength": 1 },
+        "title": { "type": "string" },
+        "durationMs": { "type": "number", "minimum": 0 },
+        "userAgent": { "type": "string" },
+        "videoStartOffsetMs": { "type": "number", "minimum": 0 },
+        "micStartOffsetMs": { "type": "number", "minimum": 0 },
+        "videoDurationMs": { "type": "number", "minimum": 0 },
+        "micDurationMs": { "type": "number", "minimum": 0 }
+      }
+    },
+    "EventType": {
+      "type": "string",
+      "enum": [
+        "click",
+        "input",
+        "submit",
+        "navigation",
+        "modal_open",
+        "menu_select",
+        "focus",
+        "keypress_enter"
+      ]
+    },
+    "BoundingBox": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["x", "y", "w", "h"],
+      "properties": {
+        "x": { "type": "number" },
+        "y": { "type": "number" },
+        "w": { "type": "number", "minimum": 0 },
+        "h": { "type": "number", "minimum": 0 }
+      }
+    },
+    "ElementContext": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "role",
+        "text",
+        "placeholder",
+        "label",
+        "nearbyText",
+        "tag",
+        "cssPath",
+        "bbox",
+        "masked"
+      ],
+      "properties": {
+        "role": { "type": ["string", "null"] },
+        "text": { "type": ["string", "null"] },
+        "placeholder": { "type": ["string", "null"] },
+        "label": { "type": ["string", "null"] },
+        "nearbyText": { "type": ["string", "null"] },
+        "tag": { "type": "string", "minLength": 1 },
+        "cssPath": { "type": "string", "minLength": 1 },
+        "bbox": { "$ref": "#/$defs/BoundingBox" },
+        "masked": { "type": "boolean" }
+      }
+    },
+    "RecEvent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "type", "ts", "url", "target"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "type": { "$ref": "#/$defs/EventType" },
+        "ts": { "type": "number", "minimum": 0 },
+        "url": { "type": "string", "minLength": 1 },
+        "target": {
+          "oneOf": [
+            { "$ref": "#/$defs/ElementContext" },
+            { "type": "null" }
+          ]
+        },
+        "value": { "type": ["string", "null"] }
+      }
+    },
+    "Screenshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "ts",
+        "eventId",
+        "confidence",
+        "width",
+        "height"
+      ],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "ts": { "type": "number", "minimum": 0 },
+        "eventId": { "type": ["string", "null"] },
+        "confidence": { "type": "string", "enum": ["high", "low"] },
+        "width": { "type": "integer", "minimum": 1 },
+        "height": { "type": "integer", "minimum": 1 },
+        "viewportWidth": { "type": "integer", "minimum": 1 },
+        "viewportHeight": { "type": "integer", "minimum": 1 },
+        "candidates": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "TranscriptWord": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["word", "start", "end"],
+      "properties": {
+        "word": { "type": "string" },
+        "start": { "type": "number", "minimum": 0 },
+        "end": { "type": "number", "minimum": 0 }
+      }
+    },
+    "TranscriptSegment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["start", "end", "text"],
+      "properties": {
+        "start": { "type": "number", "minimum": 0 },
+        "end": { "type": "number", "minimum": 0 },
+        "text": { "type": "string" },
+        "words": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/TranscriptWord" }
+        }
+      }
+    },
+    "Step": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "title",
+        "body",
+        "screenshotId",
+        "eventIds",
+        "needsReview"
+      ],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "title": { "type": "string" },
+        "body": { "type": "string" },
+        "screenshotId": { "type": ["string", "null"] },
+        "eventIds": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "needsReview": { "type": "boolean" },
+        "screenshotCandidates": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "screenshotAnnotation": { "$ref": "#/$defs/ScreenshotAnnotation" }
+      }
+    },
+    "ScreenshotAnnotation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["enabled", "bbox"],
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "bbox": { "$ref": "#/$defs/BoundingBox" },
+        "showArrow": { "type": "boolean" },
+        "showStepNumber": { "type": "boolean" }
+      }
+    },
+    "GeneratedDoc": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "title",
+        "purpose",
+        "audience",
+        "prerequisites",
+        "steps",
+        "warnings",
+        "result"
+      ],
+      "properties": {
+        "title": { "type": "string" },
+        "purpose": { "type": "string" },
+        "audience": { "type": "string" },
+        "prerequisites": { "type": "string" },
+        "steps": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/Step" }
+        },
+        "warnings": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "result": { "type": "string" }
+      }
+    }
+  }
+}

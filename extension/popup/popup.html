@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Training Recorder</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <main class="popup">
+      <h1>Training Recorder</h1>
+      <p id="status" class="status">Готов к записи</p>
+
+      <section id="consentPanel" class="consent-panel">
+        <p class="consent-title">Перед записью</p>
+        <p class="consent-intro">Записывается:</p>
+        <ul class="consent-list">
+          <li>видео активной вкладки;</li>
+          <li>ваш голос с микрофона;</li>
+          <li>действия и тексты элементов на странице.</li>
+        </ul>
+        <p class="consent-note">
+          Пароли и поля, помеченные как чувствительные, скрываются в тексте до отправки.
+          Важно: на <strong>скриншотах и видео</strong> остаётся всё, что видно на экране
+          — не показывайте чужие персональные данные во время записи.
+          Данные отправляются на сервер для генерации инструкции
+          (транскрипция через OpenAI Whisper).
+        </p>
+        <label class="consent-checkbox">
+          <input id="consentCheckbox" type="checkbox" />
+          <span>Я понимаю и согласен</span>
+        </label>
+      </section>
+
+      <div class="actions">
+        <button id="startBtn" type="button" disabled>Запись</button>
+        <button id="stopBtn" type="button" disabled>Стоп</button>
+      </div>
+
+      <label class="keep-video">
+        <input id="keepVideoCheckbox" type="checkbox" />
+        <span>Сохранять видеофайл (тяжелее; для скринов не нужен)</span>
+      </label>
+
+      <label class="backend-url">
+        <span>Адрес сервера</span>
+        <input
+          id="backendUrlInput"
+          type="url"
+          value="http://127.0.0.1:8000"
+          placeholder="http://127.0.0.1:8000"
+        />
+      </label>
+
+      <button id="editorBtn" type="button" class="editor-btn" hidden>
+        Отправить и открыть редактор
+      </button>
+
+      <button id="deleteBtn" type="button" class="delete-btn" hidden>
+        Удалить запись и все артефакты
+      </button>
+
+      <p id="error" class="error" hidden></p>
+    </main>
+    <script type="module" src="popup.js"></script>
+  </body>
+</html>

@@ -1,0 +1,170 @@
+{
+  "meta": {
+    "recordingId": "rec-mock-client-create",
+    "t0": 1719403200000,
+    "url": "https://app.example.com/clients",
+    "title": "Клиенты — Example CRM",
+    "durationMs": 185000,
+    "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+    "videoStartOffsetMs": 42,
+    "micStartOffsetMs": 58,
+    "videoDurationMs": 184900,
+    "micDurationMs": 184880
+  },
+  "events": [
+    {
+      "id": "evt-001",
+      "type": "click",
+      "ts": 1200,
+      "url": "https://app.example.com/clients",
+      "target": {
+        "role": "button",
+        "text": "Создать клиента",
+        "placeholder": null,
+        "label": null,
+        "nearbyText": "Список клиентов",
+        "tag": "button",
+        "cssPath": "main > div.clients-header > button.btn-primary",
+        "bbox": { "x": 1120, "y": 84, "w": 168, "h": 40 },
+        "masked": false
+      }
+    },
+    {
+      "id": "evt-002",
+      "type": "modal_open",
+      "ts": 1450,
+      "url": "https://app.example.com/clients",
+      "target": {
+        "role": "dialog",
+        "text": "Новый клиент",
+        "placeholder": null,
+        "label": null,
+        "nearbyText": null,
+        "tag": "div",
+        "cssPath": "div[role=dialog]#client-modal",
+        "bbox": { "x": 320, "y": 120, "w": 640, "h": 520 },
+        "masked": false
+      }
+    },
+    {
+      "id": "evt-003",
+      "type": "input",
+      "ts": 4200,
+      "url": "https://app.example.com/clients",
+      "target": {
+        "role": "textbox",
+        "text": null,
+        "placeholder": "Название компании",
+        "label": "Название",
+        "nearbyText": "Основные данные",
+        "tag": "input",
+        "cssPath": "div#client-modal input[name=companyName]",
+        "bbox": { "x": 360, "y": 220, "w": 560, "h": 36 },
+        "masked": false
+      },
+      "value": "ООО Ромашка"
+    },
+    {
+      "id": "evt-004",
+      "type": "input",
+      "ts": 9800,
+      "url": "https://app.example.com/clients",
+      "target": {
+        "role": "textbox",
+        "text": null,
+        "placeholder": "email@company.ru",
+        "label": "Email",
+        "nearbyText": "Контакты",
+        "tag": "input",
+        "cssPath": "div#client-modal input[name=email]",
+        "bbox": { "x": 360, "y": 320, "w": 560, "h": 36 },
+        "masked": true
+      },
+      "value": "••••"
+    },
+    {
+      "id": "evt-005",
+      "type": "submit",
+      "ts": 15200,
+      "url": "https://app.example.com/clients",
+      "target": {
+        "role": "button",
+        "text": "Сохранить",
+        "placeholder": null,
+        "label": null,
+        "nearbyText": "Новый клиент",
+        "tag": "button",
+        "cssPath": "div#client-modal button[type=submit]",
+        "bbox": { "x": 820, "y": 560, "w": 120, "h": 40 },
+        "masked": false
+      }
+    },
+    {
+      "id": "evt-006",
+      "type": "navigation",
+      "ts": 16800,
+      "url": "https://app.example.com/clients/rec-42",
+      "target": null
+    }
+  ],
+  "screenshots": [
+    {
+      "id": "scr-001",
+      "ts": 2100,
+      "eventId": "evt-001",
+      "confidence": "high",
+      "width": 1440,
+      "height": 900,
+      "candidates": ["scr-001a", "scr-001b"]
+    },
+    {
+      "id": "scr-002",
+      "ts": 5200,
+      "eventId": "evt-003",
+      "confidence": "high",
+      "width": 1440,
+      "height": 900,
+      "candidates": ["scr-002a", "scr-002b", "scr-002c"]
+    },
+    {
+      "id": "scr-003",
+      "ts": 16200,
+      "eventId": "evt-005",
+      "confidence": "high",
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "id": "scr-004",
+      "ts": 24800,
+      "eventId": "evt-006",
+      "confidence": "low",
+      "width": 1440,
+      "height": 900,
+      "candidates": ["scr-004a"]
+    }
+  ],
+  "transcript": [
+    {
+      "start": 800,
+      "end": 4500,
+      "text": "Сейчас нажмём создать клиента и откроется форма.",
+      "words": [
+        { "word": "Сейчас", "start": 800, "end": 1100 },
+        { "word": "нажмём", "start": 1100, "end": 1500 },
+        { "word": "создать", "start": 1500, "end": 1900 },
+        { "word": "клиента", "start": 1900, "end": 2400 }
+      ]
+    },
+    {
+      "start": 5000,
+      "end": 12000,
+      "text": "Вводим название компании и контактный email."
+    },
+    {
+      "start": 14000,
+      "end": 17500,
+      "text": "Сохраняем — клиент появится в списке."
+    }
+  ]
+}
