@@ -1,0 +1,114 @@
+{
+  "meta": {
+    "recordingId": "rec-wms-table-clicks",
+    "t0": 1719403200000,
+    "url": "https://wms.example.com/warehouse/boxes",
+    "title": "WMS — таблица коробов",
+    "durationMs": 8000,
+    "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+    "videoStartOffsetMs": 0,
+    "micStartOffsetMs": 0,
+    "videoDurationMs": 8000,
+    "micDurationMs": 8000
+  },
+  "events": [
+    {
+      "id": "evt-wms-close",
+      "type": "click",
+      "ts": 1200,
+      "url": "https://wms.example.com/warehouse/boxes",
+      "target": {
+        "role": "button",
+        "text": "Закрыть короб",
+        "placeholder": null,
+        "label": null,
+        "nearbyText": "Короб #A-101",
+        "tag": "button",
+        "cssPath": "table.wms-table > tbody > tr > td.actions > button.row-action",
+        "bbox": { "x": 220, "y": 202, "w": 120, "h": 36 },
+        "masked": false,
+        "clickPoint": { "x": 280, "y": 220 }
+      }
+    },
+    {
+      "id": "evt-wms-open",
+      "type": "click",
+      "ts": 3400,
+      "url": "https://wms.example.com/warehouse/boxes",
+      "target": {
+        "role": "button",
+        "text": "Открыть короб",
+        "placeholder": null,
+        "label": null,
+        "nearbyText": "Короб #B-204",
+        "tag": "button",
+        "cssPath": "table.wms-table > tbody > tr > td.actions > button.row-action",
+        "bbox": { "x": 1080, "y": 442, "w": 120, "h": 36 },
+        "masked": false,
+        "clickPoint": { "x": 1140, "y": 460 }
+      }
+    }
+  ],
+  "screenshots": [
+    {
+      "id": "scr-wms-close",
+      "ts": 1250,
+      "eventId": "evt-wms-close",
+      "confidence": "high",
+      "width": 2560,
+      "height": 1440,
+      "captureContext": {
+        "viewportWidth": 1280,
+        "viewportHeight": 720,
+        "devicePixelRatio": 2,
+        "scrollX": 0,
+        "scrollY": 0
+      },
+      "materializedClickPoint": { "x": 560, "y": 440 },
+      "annotationConfidence": "measured"
+    },
+    {
+      "id": "scr-wms-open",
+      "ts": 3450,
+      "eventId": "evt-wms-open",
+      "confidence": "high",
+      "width": 2560,
+      "height": 1440,
+      "captureContext": {
+        "viewportWidth": 1280,
+        "viewportHeight": 720,
+        "devicePixelRatio": 2,
+        "scrollX": 0,
+        "scrollY": 0
+      },
+      "materializedClickPoint": { "x": 2280, "y": 920 },
+      "annotationConfidence": "measured"
+    }
+  ],
+  "generatedDoc": {
+    "title": "Операции с коробами в WMS",
+    "purpose": "Regression: одинаковые кнопки в разных строках таблицы",
+    "audience": "Operators",
+    "prerequisites": "Доступ к складу",
+    "steps": [
+      {
+        "id": "step-wms-1",
+        "title": "Закрыть короб в строке A-101",
+        "body": "Нажмите «Закрыть короб» в первой строке.",
+        "screenshotId": "scr-wms-close",
+        "eventIds": ["evt-wms-close"],
+        "needsReview": false
+      },
+      {
+        "id": "step-wms-2",
+        "title": "Открыть короб в строке B-204",
+        "body": "Нажмите «Открыть короб» во второй строке.",
+        "screenshotId": "scr-wms-open",
+        "eventIds": ["evt-wms-open"],
+        "needsReview": false
+      }
+    ],
+    "warnings": [],
+    "result": "Короба обработаны"
+  }
+}

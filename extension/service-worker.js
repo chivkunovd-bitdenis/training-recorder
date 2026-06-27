@@ -1,21 +1,31 @@
 import { MSG } from "./lib/messages.js";
 import { generateRecordingId } from "./lib/recording-meta.js";
+import { runFullPipeline } from "./lib/process-pipeline.js";
 import {
   deleteAllRecordingArtifacts,
   hasStoredRecording,
 } from "./lib/recording-artifacts.js";
+import {
+  getWorkflow,
+  resetWorkflow,
+  setWorkflow,
+} from "./lib/workflow-state.js";
 
 const OFFSCREEN_URL = chrome.runtime.getURL("offscreen.html");
 const OFFSCREEN_TARGET = "offscreen";
 
 /** @type {Promise<void> | null} */
 let offscreenCreating = null;
+/** @type {Promise<void> | null} */
+let pipelineRunning = null;
+
+/** @type {{ recordingId: string; tabId: number; t0: number | null } | null} */
+let activeSession = null;
 
 async function hasOffscreenDocument() {
   if (chrome.offscreen.hasDocument) {
     return chrome.offscreen.hasDocument();
   }
-
   const contexts = await chrome.runtime.getContexts({
     contextTypes: ["OFFSCREEN_DOCUMENT"],
   });
@@ -33,7 +43,7 @@ async function ensureOffscreenDocument() {
       .createDocument({
         url: OFFSCREEN_URL,
         reasons: ["USER_MEDIA", "DISPLAY_MEDIA"],
-        justification: "Запись видео активной вкладки для обучающей документации",
+        justification: "Запись вкладки и микрофона для обучающей документации",
       })
       .finally(() => {
         offscreenCreating = null;
@@ -62,7 +72,7 @@ async function waitForOffscreenReady() {
       setTimeout(resolve, 50);
     });
   }
-  throw new Error("Offscreen-документ не ответил — перезагрузите расширение");
+  throw new Error("Offscreen не ответил — перезагрузите расширение (↻)");
 }
 
 async function closeOffscreenDocument() {
@@ -78,7 +88,7 @@ async function sendToOffscreen(message) {
     target: OFFSCREEN_TARGET,
   });
   if (response === undefined) {
-    throw new Error("Offscreen не ответил на команду");
+    throw new Error("Offscreen не ответил");
   }
   return response;
 }
@@ -92,7 +102,6 @@ function setRecordingBadge(active) {
   chrome.action.setBadgeText({ text: "" });
 }
 
-// Буфер артефактов в storage.local переживает навигацию вкладки (см. content.js).
 const bufferKeys = (recordingId) => [
   `tr_buffer_${recordingId}`,
   `tr_buffer_img_${recordingId}`,
@@ -118,9 +127,6 @@ async function clearBufferedArtifacts(recordingId) {
   }
 }
 
-/** @type {{ recordingId: string; tabId: number; t0: number | null } | null} */
-let activeSession = null;
-
 function isRestrictedTabUrl(url) {
   if (!url) {
     return true;
@@ -134,15 +140,26 @@ function isRestrictedTabUrl(url) {
   );
 }
 
-async function getActiveTab() {
+async function resolveRecordingTab(tabId) {
+  if (typeof tabId === "number") {
+    const tab = await chrome.tabs.get(tabId);
+    if (!tab?.id) {
+      throw new Error("Вкладка для записи не найдена");
+    }
+    if (isRestrictedTabUrl(tab.url)) {
+      throw new Error(
+        "Нельзя записывать эту страницу. Откройте обычный сайт и нажмите «Запись» снова.",
+      );
+    }
+    return tab;
+  }
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   if (!tab?.id) {
     throw new Error("Не найдена активная вкладка");
   }
   if (isRestrictedTabUrl(tab.url)) {
     throw new Error(
-      "Нельзя записывать эту страницу (chrome://, Web Store и служебные вкладки). " +
-        "Откройте обычный сайт и нажмите «Запись» снова.",
+      "Нельзя записывать эту страницу. Откройте обычный сайт и нажмите «Запись» снова.",
     );
   }
   return tab;
@@ -155,26 +172,42 @@ async function injectContentRecorder(tabId, payload) {
       "content/bridge.js",
       "content/masking.js",
       "content/dom-context.js",
+      "lib/annotation-geometry.js",
       "content/stabilizer.js",
+      "content/overlay.js",
       "content/content.js",
     ],
   });
 
-  return chrome.tabs.sendMessage(tabId, {
+  const contentStart = await chrome.tabs.sendMessage(tabId, {
     type: MSG.CONTENT_START,
     payload,
   });
+
+  if (contentStart?.ok) {
+    await chrome.tabs.sendMessage(tabId, {
+      type: MSG.CONTENT_OVERLAY_START,
+      payload: { t0: payload.t0 },
+    });
+  }
+
+  return contentStart;
+}
+
+async function hideRecordingOverlay(tabId) {
+  try {
+    await chrome.tabs.sendMessage(tabId, { type: MSG.CONTENT_OVERLAY_STOP });
+  } catch {
+    // ignore
+  }
 }
 
 async function collectContentArtifacts(tabId, recordingId) {
-  // Буфер из storage.local — авторитетный источник: он переживает навигацию, даже
-  // если в момент стопа живого content script на странице нет.
   const buffered = await readBufferedArtifacts(recordingId);
   if (buffered.events.length || buffered.screenshots.length) {
     return buffered;
   }
 
-  // Запасной путь: вкладка не навигировала, спросим живой content script.
   try {
     const response = await chrome.tabs.sendMessage(tabId, {
       type: MSG.CONTENT_GET_EVENTS,
@@ -199,17 +232,43 @@ async function stopContentRecorder(tabId) {
   try {
     await chrome.tabs.sendMessage(tabId, { type: MSG.CONTENT_STOP });
   } catch {
-    // вкладка могла закрыться
+    // ignore
   }
+  await hideRecordingOverlay(tabId);
 }
 
-async function startRecording({ keepVideo = false } = {}) {
-  if (activeSession) {
+async function startRecording({ keepVideo = false, tabId = null } = {}) {
+  const workflow = await getWorkflow();
+  if (workflow.phase === "recording" || activeSession) {
     throw new Error("Запись уже идёт");
   }
+  if (pipelineRunning) {
+    throw new Error("Идёт обработка предыдущей записи — дождитесь завершения");
+  }
 
-  const tab = await getActiveTab();
+  await setWorkflow({
+    phase: "requesting_permissions",
+    progress: 5,
+    statusText: "Разрешите микрофон в Chrome…",
+    error: "",
+    keepVideo,
+  });
+
+  const tab = await resolveRecordingTab(tabId);
   const recordingId = generateRecordingId();
+
+  let tabStreamId;
+  try {
+    tabStreamId = await chrome.tabCapture.getMediaStreamId({ targetTabId: tab.id });
+  } catch (error) {
+    await setWorkflow({
+      phase: "error",
+      progress: 0,
+      statusText: "Не удалось получить вкладку",
+      error: "Обновите страницу и попробуйте снова.",
+    });
+    throw error instanceof Error ? error : new Error(String(error));
+  }
 
   await ensureOffscreenDocument();
 
@@ -220,17 +279,20 @@ async function startRecording({ keepVideo = false } = {}) {
       url: tab.url ?? "",
       title: tab.title ?? "",
       keepVideo,
+      tabStreamId,
     },
   });
 
-  if (!startResponse?.ok) {
+  if (!startResponse?.ok || !startResponse.t0) {
     await closeOffscreenDocument();
-    throw new Error(startResponse?.error ?? "Не удалось начать запись в offscreen");
-  }
-
-  if (!startResponse.t0) {
-    await closeOffscreenDocument();
-    throw new Error("Offscreen не вернул t0");
+    const errorText = startResponse?.error ?? "Не удалось начать запись";
+    await setWorkflow({
+      phase: "error",
+      progress: 0,
+      statusText: "Ошибка старта",
+      error: errorText,
+    });
+    throw new Error(errorText);
   }
 
   try {
@@ -246,33 +308,38 @@ async function startRecording({ keepVideo = false } = {}) {
     await closeOffscreenDocument();
     setRecordingBadge(false);
     const message = error instanceof Error ? error.message : String(error);
-    if (message.includes("Cannot access") || message.includes("extensions gallery")) {
-      throw new Error(
-        "Нельзя записать эту страницу. Откройте обычный сайт (не chrome:// и не Web Store).",
-      );
-    }
-    throw error instanceof Error
-      ? error
-      : new Error("Не удалось запустить сбор событий на странице");
+    await setWorkflow({
+      phase: "error",
+      progress: 0,
+      statusText: "Не удалось начать запись на странице",
+      error: message,
+    });
+    throw error instanceof Error ? error : new Error(message);
   }
 
-  activeSession = { recordingId, tabId: tab.id, t0: startResponse.t0 ?? null };
+  activeSession = {
+    recordingId,
+    tabId: tab.id,
+    t0: startResponse.t0,
+  };
   setRecordingBadge(true);
 
-  await chrome.storage.session.set({
-    recordingActive: true,
+  await setWorkflow({
+    phase: "recording",
     recordingId,
-    recordingTabId: tab.id,
+    tabId: tab.id,
+    startedAt: Date.now(),
+    t0: startResponse.t0,
+    progress: 0,
+    statusText: "Идёт запись — плашка REC в углу страницы",
+    error: "",
+    editorUrl: "",
   });
 
-  return {
-    ok: true,
-    recordingId,
-    displaySurface: startResponse.displaySurface ?? null,
-  };
+  return { ok: true, recordingId };
 }
 
-async function stopRecording() {
+async function stopRecordingInternal() {
   if (!activeSession) {
     throw new Error("Запись не была начата");
   }
@@ -291,30 +358,11 @@ async function stopRecording() {
 
   activeSession = null;
   setRecordingBadge(false);
-  await chrome.storage.session.set({
-    recordingActive: false,
-    recordingId: null,
-    recordingTabId: null,
-  });
-
   await closeOffscreenDocument();
 
   if (!stopResponse?.ok) {
     throw new Error(stopResponse?.error ?? "Не удалось остановить запись");
   }
-
-  await chrome.storage.local.set({
-    lastRecording: {
-      recordingId: stopResponse.meta.recordingId,
-      meta: stopResponse.meta,
-      events,
-      screenshots,
-      uploaded: false,
-      videoByteLength: stopResponse.videoByteLength,
-      micByteLength: stopResponse.micByteLength,
-      savedAt: Date.now(),
-    },
-  });
 
   return {
     ...stopResponse,
@@ -329,13 +377,89 @@ async function stopRecording() {
   };
 }
 
+async function stopAndProcess() {
+  if (pipelineRunning) {
+    await pipelineRunning;
+    return getWorkflow();
+  }
+
+  const workflow = await getWorkflow();
+  if (workflow.phase !== "recording" && !activeSession) {
+    if (workflow.phase === "ready" || workflow.phase === "processing") {
+      return workflow;
+    }
+    throw new Error("Нет активной записи");
+  }
+
+  pipelineRunning = (async () => {
+    try {
+      await setWorkflow({
+        phase: "stopping",
+        progress: 10,
+        statusText: "Останавливаем запись…",
+        error: "",
+      });
+
+      const stopResponse = await stopRecordingInternal();
+
+      await setWorkflow({
+        phase: "uploading",
+        progress: 25,
+        statusText: "Отправляем на сервер…",
+      });
+
+      const result = await runFullPipeline(stopResponse, async (progress, statusText) => {
+        const phase = progress >= 45 ? "processing" : "uploading";
+        await setWorkflow({ phase, progress, statusText });
+      });
+
+      await setWorkflow({
+        phase: "ready",
+        progress: 100,
+        recordingId: result.recordingId,
+        editorUrl: result.editorUrl,
+        statusText: "Готово — инструкция в редакторе",
+        error: "",
+      });
+
+      chrome.tabs.create({ url: result.editorUrl }).catch(() => undefined);
+      chrome.runtime
+        .sendMessage({
+          type: MSG.RECORDING_DONE,
+          recordingId: result.recordingId,
+          editorUrl: result.editorUrl,
+        })
+        .catch(() => undefined);
+
+      return result;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      await setWorkflow({
+        phase: "error",
+        progress: 0,
+        statusText: "Ошибка обработки",
+        error: message,
+      });
+      throw error instanceof Error ? error : new Error(message);
+    } finally {
+      pipelineRunning = null;
+    }
+  })();
+
+  await pipelineRunning;
+  return getWorkflow();
+}
+
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message?.target === OFFSCREEN_TARGET) {
     return false;
   }
 
   if (message.type === MSG.START_RECORDING) {
-    startRecording({ keepVideo: Boolean(message.keepVideo) })
+    startRecording({
+      keepVideo: Boolean(message.keepVideo),
+      tabId: typeof message.tabId === "number" ? message.tabId : null,
+    })
       .then((result) => sendResponse(result))
       .catch((error) =>
         sendResponse({
@@ -346,9 +470,21 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     return true;
   }
 
-  if (message.type === MSG.STOP_RECORDING) {
-    stopRecording()
-      .then((result) => sendResponse(result))
+  if (message.type === MSG.STOP_AND_PROCESS || message.type === MSG.STOP_RECORDING) {
+    stopAndProcess()
+      .then((workflow) => sendResponse({ ok: true, workflow }))
+      .catch((error) =>
+        sendResponse({
+          ok: false,
+          error: error instanceof Error ? error.message : String(error),
+        }),
+      );
+    return true;
+  }
+
+  if (message.type === MSG.RESET_WORKFLOW) {
+    resetWorkflow()
+      .then((workflow) => sendResponse({ ok: true, workflow }))
       .catch((error) =>
         sendResponse({
           ok: false,
@@ -385,6 +521,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
         if (result.recordingId) {
           await clearBufferedArtifacts(result.recordingId);
         }
+        await resetWorkflow();
         sendResponse(result);
       })
       .catch((error) =>
@@ -397,14 +534,16 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   }
 
   if (message.type === MSG.RECORDING_STATE) {
-    chrome.storage.session
-      .get(["recordingActive", "recordingId"])
-      .then(async (sessionData) => {
+    getWorkflow()
+      .then(async (workflow) => {
         const localData = await chrome.storage.local.get(["lastRecording"]);
         sendResponse({
           ok: true,
-          isRecording: Boolean(sessionData.recordingActive),
-          recordingId: sessionData.recordingId ?? null,
+          workflow,
+          isRecording: workflow.phase === "recording",
+          recordingId: workflow.recordingId ?? null,
+          recordingStatus: workflow.phase,
+          recordingError: workflow.error ?? "",
           hasLastRecording: hasStoredRecording(localData.lastRecording),
         });
       })
@@ -420,9 +559,6 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   return false;
 });
 
-// Реинъекция content script после полной навигации записываемой вкладки: новый
-// документ уничтожает старый скрипт, поднимаем заново с тем же t0/recordingId —
-// накопленные артефакты подхватятся из буфера (rehydrate в content.js).
 chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
   if (
     !activeSession ||
@@ -436,6 +572,18 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
     t0: activeSession.t0,
     recordingId: activeSession.recordingId,
   }).catch(() => {
-    // about:/chrome:// или закрытая вкладка — пропускаем
+    // about:/chrome:// — пропускаем
   });
 });
+
+void (async () => {
+  const workflow = await getWorkflow();
+  if (workflow.phase === "recording" && workflow.recordingId && workflow.tabId) {
+    activeSession = {
+      recordingId: workflow.recordingId,
+      tabId: workflow.tabId,
+      t0: typeof workflow.t0 === "number" ? workflow.t0 : null,
+    };
+    setRecordingBadge(true);
+  }
+})();

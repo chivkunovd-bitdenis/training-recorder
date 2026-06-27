@@ -14,6 +14,7 @@ import {
 import {
   getScreenshotMeta,
   resolveAnnotationForStep,
+  shouldShowAnnotationWarning,
 } from "./annotation";
 import { ScreenshotAnnotator } from "./ScreenshotAnnotator";
 import type { DocStep, GeneratedDoc, ScreenshotAnnotation, Timeline } from "./types";
@@ -286,7 +287,21 @@ export function App() {
 
               <div className="screenshot-block">
                 {step.screenshotId && annotation && screenshotMeta ? (
-                  <ScreenshotAnnotator
+                  <>
+                    {shouldShowAnnotationWarning(annotation) ? (
+                      <p className="annotation-warning" role="status">
+                        Подсветка могла сдвинуться — проверьте и подвиньте рамку
+                      </p>
+                    ) : annotation.annotationMode === "clickPoint" &&
+                      annotation.confidence === "measured" ? (
+                      <p
+                        className="annotation-click-hint"
+                        title="Координаты взяты из точки нажатия при записи"
+                      >
+                        Подсветка: точка нажатия
+                      </p>
+                    ) : null}
+                    <ScreenshotAnnotator
                     imageUrl={screenshotUrl(recordingId, step.screenshotId)}
                     naturalWidth={screenshotMeta.width}
                     naturalHeight={screenshotMeta.height}
@@ -294,6 +309,7 @@ export function App() {
                     annotation={annotation}
                     onChange={handleAnnotationChange}
                   />
+                  </>
                 ) : step.screenshotId ? (
                   <img
                     src={screenshotUrl(recordingId, step.screenshotId)}

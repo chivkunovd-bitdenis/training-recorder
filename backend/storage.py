@@ -14,7 +14,6 @@ from sqlalchemy.orm import Session
 from backend.config import get_timeline_schema_path
 from backend.models import Job, Recording
 
-
 # Тот же паттерн, что и в timeline.schema.json. Защита от path traversal: recordingId
 # приходит из клиента и подставляется в путь файловой системы.
 RECORDING_ID_RE = re.compile(r"^rec-[A-Za-z0-9_-]{1,80}$")

@@ -43,3 +43,35 @@ curl -sS https://training-recorder-production.up.railway.app/health
 ## Обновление расширения после `git pull`
 
 Chrome → `chrome://extensions/` → у Training Recorder кнопка **Обновить** (↻).
+
+## Координаты подсветки на скриншотах
+
+| Пространство | Где хранится | Для чего |
+|--------------|--------------|----------|
+| **viewport CSS** | `event.target.bbox` | только событие/DOM при записи |
+| **screenshot pixels** | `screenshotAnnotation.bbox`, `materializedBbox` | рендер рамки, номера шага и стрелки |
+| **display (редактор)** | вычисляется на лету | превью с letterbox (`object-fit: contain`) |
+
+При захвате расширение пишет **`captureContext`** (ширина/высота вьюпорта, DPR, scroll) и **`materializedBbox`** в пикселях bitmap. Старые записи без `captureContext` получают **`confidence: inferred`** — в редакторе жёлтая плашка «Подсветка могла сдвинуться — проверьте и подвиньте рамку».
+
+## Клик = шаг (новые записи)
+
+С **2026-06** значимый **клик** — это отдельный шаг инструкции:
+
+1. В момент нажатия делается **один** скриншот (без ожидания «тишины» сети).
+2. Красный маркер/стрелка указывают **куда нажали** (`clickPoint`), а не «первую кнопку с таким селектором» в DOM.
+3. **`modal_open`** — контекст экрана для **следующего** шага; стрелка предыдущего шага **не** переезжает на диалог. Сначала клик по кнопке → потом отдельный шаг с действием внутри модалки.
+
+Подробный план эпика: [`docs/CLICK_FIRST_CAPTURE_TASKS.md`](CLICK_FIRST_CAPTURE_TASKS.md).
+
+### Поля `clickPoint` в timeline
+
+| Поле | Где | Смысл |
+|------|-----|--------|
+| `event.target.clickPoint` | событие `click` / `submit` / `menu_select` | координаты мыши во **viewport CSS** (`clientX`, `clientY`) |
+| `screenshot.materializedClickPoint` | скриншот | та же точка в **пикселях bitmap** (с учётом DPR) |
+| `screenshotAnnotation.annotationMode: "clickPoint"` | шаг документа | подсветка — круг/стрелка в точку, не прямоугольник элемента |
+| `screenshotAnnotation.confidence: "measured"` | шаг | точка снята при записи — **без** жёлтого предупреждения в редакторе |
+| `event.target.bbox` | событие | fallback для старых записей; при одинаковом `cssPath` в таблице WMS **не** используется для materialize |
+
+Старые записи без `clickPoint` продолжают работать через `bbox` + `confidence: inferred` и жёлтую плашку в редакторе.

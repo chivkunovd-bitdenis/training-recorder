@@ -3,7 +3,7 @@
   "name": "Training Recorder",
   "version": "0.1.0",
   "description": "Запись обучения по веб-интерфейсу для генерации инструкций",
-  "permissions": ["offscreen", "activeTab", "scripting", "storage", "unlimitedStorage", "tabs"],
+  "permissions": ["offscreen", "activeTab", "scripting", "storage", "unlimitedStorage", "tabs", "tabCapture"],
   "host_permissions": ["<all_urls>"],
   "background": {
     "service_worker": "service-worker.js",

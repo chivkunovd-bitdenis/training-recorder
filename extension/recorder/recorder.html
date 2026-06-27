@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Training Recorder</title>
+    <link rel="stylesheet" href="recorder.css" />
+  </head>
+  <body>
+    <main class="recorder">
+      <h1>Training Recorder</h1>
+      <p id="timer" class="timer" hidden>00:00</p>
+      <p id="status" class="status">Подготовка…</p>
+
+      <section id="recordingSection" class="section">
+        <button id="stopBtn" type="button" class="stop-btn" hidden>⏹ Остановить запись</button>
+      </section>
+
+      <section id="uploadingSection" class="section hidden">
+        <p class="uploading-text">Отправляем запись на сервер…</p>
+        <p class="uploading-sub">Дальше Whisper расшифрует голос и откроется редактор инструкции.</p>
+      </section>
+
+      <section id="doneSection" class="section hidden">
+        <p class="done-title">✓ Готово</p>
+        <p class="done-text">Расшифровка и черновик инструкции — в новой вкладке редактора.</p>
+        <button id="openEditorBtn" type="button" class="primary-btn">Открыть редактор</button>
+        <button id="closeBtn" type="button" class="secondary-btn">Закрыть</button>
+      </section>
+
+      <section id="errorSection" class="section hidden">
+        <p id="error" class="error"></p>
+        <button id="retryBtn" type="button" class="secondary-btn">Попробовать снова</button>
+      </section>
+    </main>
+    <script type="module" src="recorder.js"></script>
+  </body>
+</html>

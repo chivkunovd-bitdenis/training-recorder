@@ -2,8 +2,9 @@
   const MSG = globalThis.TrainingRecorderMSG;
   const Dom = globalThis.TrainingRecorderDom;
   const Stabilizer = globalThis.TrainingRecorderStabilizer;
+  const Geometry = globalThis.TrainingRecorderGeometry;
 
-  if (!MSG || !Dom || !Stabilizer) {
+  if (!MSG || !Dom || !Stabilizer || !Geometry) {
     throw new Error("Training Recorder content dependencies are not loaded");
   }
 
@@ -172,7 +173,33 @@
     }
 
     /**
-     * @param {{ eventId: string; ts: number; confidence: "high" | "low" }} payload
+     * Обновить bbox события по cssPath в момент скрина (после стабилизации UI).
+     * @param {string} eventId
+     */
+    refreshEventBBox(eventId) {
+      const event = this.events.find((item) => item.id === eventId);
+      const cssPath = event?.target?.cssPath;
+      if (!cssPath || typeof cssPath !== "string") {
+        return;
+      }
+      try {
+        const element = document.querySelector(cssPath);
+        if (!element || element.nodeType !== 1) {
+          return;
+        }
+        if (!Dom.isElementVisibleForBBox(element)) {
+          // Элемент уже скрыт (модалка поверх, unmount) — оставляем bbox с момента клика.
+          return;
+        }
+        event.target.bbox = Dom.buildBoundingBox(element);
+        this.flushEvents();
+      } catch {
+        // невалидный селектор — оставляем bbox с момента клика
+      }
+    }
+
+    /**
+     * @param {{ eventId: string; ts: number; confidence: "high" | "low"; immediate?: boolean }} payload
      */
     async requestScreenshot(payload) {
       try {
@@ -183,6 +210,7 @@
             eventId: payload.eventId,
             ts: payload.ts,
             confidence: payload.confidence,
+            immediate: payload.immediate === true,
           },
         });
 
@@ -197,6 +225,14 @@
         }
         this.flushImages();
 
+        const capturedEvent = this.events.find(
+          (item) => item.id === payload.eventId,
+        );
+        const pointerTypes = new Set(["click", "submit", "menu_select"]);
+        if (!pointerTypes.has(capturedEvent?.type ?? "")) {
+          this.refreshEventBBox(payload.eventId);
+        }
+
         const mainShot = response.screenshots.find(
           (shot) => shot.id === response.mainScreenshotId,
         );
@@ -204,16 +240,14 @@
           return;
         }
 
-        const { imageBase64: _image, byteLength: _byteLength, ...meta } = mainShot;
-        this.screenshots.push({
-          ...meta,
-          eventId: payload.eventId,
-          candidates: mainShot.candidates ?? [],
-          // Размер вьюпорта на момент захвата — нужен, чтобы перевести bbox события
-          // (CSS-пиксели) в пиксели кадра при аннотации на HiDPI.
-          viewportWidth: window.innerWidth,
-          viewportHeight: window.innerHeight,
-        });
+        this.screenshots.push(
+          Dom.buildScreenshotMeta({
+            mainShot,
+            eventId: payload.eventId,
+            events: this.events,
+            geometry: Geometry,
+          }),
+        );
         this.flushEvents();
       } catch {
         // offscreen мог быть недоступен
@@ -254,7 +288,8 @@
         if (!target) {
           return;
         }
-        this.pushEvent("click", target);
+        const { element, clickPoint } = Dom.resolveClickTarget(target, event);
+        this.pushEvent("click", element, null, clickPoint);
       };
 
       const onFocusIn = (event) => {
@@ -288,11 +323,24 @@
       };
 
       const onSubmit = (event) => {
-        const target = /** @type {Element | null} */ (event.target);
-        if (!target) {
+        const formTarget = /** @type {Element | null} */ (event.target);
+        if (!formTarget) {
           return;
         }
-        this.pushEvent("submit", target);
+        const rawTarget =
+          event.submitter instanceof Element ? event.submitter : formTarget;
+        if (
+          typeof event.clientX === "number" &&
+          typeof event.clientY === "number"
+        ) {
+          const { element, clickPoint } = Dom.resolveClickTarget(
+            rawTarget,
+            event,
+          );
+          this.pushEvent("submit", element, null, clickPoint);
+          return;
+        }
+        this.pushEvent("submit", rawTarget);
       };
 
       const onKeyDown = (event) => {
@@ -387,8 +435,9 @@
      * @param {string} type
      * @param {Element | null} [target]
      * @param {string | null} [value]
+     * @param {{ x: number; y: number } | null} [clickPoint]
      */
-    pushEvent(type, target = null, value = null) {
+    pushEvent(type, target = null, value = null, clickPoint = null) {
       this.sequence += 1;
       const event = Dom.createRecEvent({
         id: `evt-${this.recordingId}-${this.sequence}`,
@@ -397,12 +446,14 @@
         t0: this.t0,
         url: window.location.href,
         value,
+        clickPoint,
       });
       this.events.push(event);
       this.flushEvents();
 
-      if (Stabilizer.isSignificantAction(type, target, Dom)) {
-        this.stabilizer.onSignificantAction(event.id, event.ts);
+      const captureMode = Stabilizer.getCaptureMode(type, target, Dom);
+      if (captureMode) {
+        this.stabilizer.onSignificantAction(event.id, event.ts, captureMode);
       }
     }
   }

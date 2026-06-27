@@ -32,6 +32,7 @@ const REQUIRED_PERMISSIONS = [
   "scripting",
   "storage",
   "tabs",
+  "tabCapture",
 ];
 
 const REQUIRED_FILES = [
@@ -50,8 +51,15 @@ const REQUIRED_FILES = [
   "content/stabilizer.js",
   "content/net-hook.js",
   "content/content.js",
-  "lib/stabilizer-config.js",
+  "content/overlay.js",
+  "lib/workflow-state.js",
+  "lib/process-pipeline.js",
   "lib/frame-capture.js",
+  "recorder/recorder.html",
+  "recorder/recorder.js",
+  "recorder/recorder.css",
+  "lib/media-permissions.js",
+  "lib/recording-engine.js",
 ];
 
 test("T0.2: manifest MV3 с нужными permissions и module service worker", () => {

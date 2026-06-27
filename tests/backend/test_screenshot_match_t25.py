@@ -111,6 +111,45 @@ def test_refine_preserves_llm_needs_review_flag(fixtures_dir: Path) -> None:
     assert refined["steps"][0]["needsReview"] is True
 
 
+def test_match_prefers_click_screenshot_over_modal_open() -> None:
+    screenshots = [
+        {
+            "id": "scr-click",
+            "ts": 1600,
+            "eventId": "evt-click",
+            "confidence": "high",
+            "width": 2560,
+            "height": 1440,
+        },
+        {
+            "id": "scr-modal",
+            "ts": 1800,
+            "eventId": "evt-modal",
+            "confidence": "high",
+            "width": 2560,
+            "height": 1440,
+        },
+    ]
+    events_by_id = {
+        "evt-click": {"id": "evt-click", "type": "click", "ts": 1500},
+        "evt-modal": {"id": "evt-modal", "type": "modal_open", "ts": 1700},
+    }
+    step = {
+        "id": "step-001",
+        "eventIds": ["evt-click", "evt-modal"],
+        "needsReview": False,
+    }
+
+    screenshot_id, needs_review, _candidates = match_step_screenshot(
+        step,
+        screenshots,
+        events_by_id=events_by_id,
+    )
+
+    assert screenshot_id == "scr-click"
+    assert needs_review is False
+
+
 def test_empty_screenshots_marks_steps_for_review() -> None:
     doc = {
         "title": "t",

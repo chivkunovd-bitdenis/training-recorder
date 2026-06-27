@@ -1,4 +1,6 @@
 import type {
+  AnnotationConfidence,
+  AnnotationCoordinateSpace,
   BoundingBox,
   DocStep,
   RecEvent,
@@ -10,9 +12,12 @@ import {
   resolveStepAnnotation,
   scaleBBoxToDisplay,
   scaleBBoxToNatural,
+  shouldShowAnnotationWarning,
 } from "../../shared/annotation-utils.mjs";
 
 export type {
+  AnnotationConfidence,
+  AnnotationCoordinateSpace,
   BoundingBox,
   RecEvent,
   Screenshot,
@@ -24,6 +29,7 @@ export {
   resolveStepAnnotation,
   scaleBBoxToDisplay,
   scaleBBoxToNatural,
+  shouldShowAnnotationWarning,
 };
 
 export function getScreenshotMeta(
@@ -50,6 +56,15 @@ export function resolveAnnotationForStep(
     screenshots: timeline.screenshots,
     existing: step.screenshotAnnotation ?? null,
   });
+}
+
+/**
+ * @deprecated use shouldShowAnnotationWarning
+ */
+export function annotationSuggestsNeedsReview(
+  annotation: ScreenshotAnnotation | null,
+): boolean {
+  return shouldShowAnnotationWarning(annotation);
 }
 
 export function clampBBoxToImage(

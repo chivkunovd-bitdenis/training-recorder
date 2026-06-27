@@ -48,17 +48,16 @@ function createMockStorage(initial = {}) {
 
 test("T1.5: popup содержит экран согласия и чекбокс", () => {
   assert.match(popupHtml, /Перед записью/);
-  assert.match(popupHtml, /видео активной вкладки/);
-  assert.match(popupHtml, /OpenAI Whisper/);
+  assert.match(popupHtml, /Whisper/);
   assert.match(popupHtml, /id="consentCheckbox"/);
   assert.match(popupHtml, /Я понимаю и согласен/);
   assert.match(popupHtml, /id="deleteBtn"/);
-  assert.match(popupHtml, /Удалить запись и все артефакты/);
+  assert.match(popupHtml, /Удалить последнюю запись/);
 });
 
 test("T1.5: без согласия старт заблокирован в popup.js", () => {
   assert.match(popupJs, /consentCheckbox\.checked/);
-  assert.match(popupJs, /startBtn\.disabled = isRecording \|\| !consentGiven/);
+  assert.match(popupJs, /startBtn\.disabled = !consentCheckbox\.checked/);
   assert.match(popupJs, /Нужно согласие перед началом записи/);
   assert.match(popupHtml, /id="startBtn"[^>]*disabled/);
 });

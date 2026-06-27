@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
+  displayBBoxToScreenshot,
   drawAnnotationOnCanvas,
-  scaleBBoxToDisplay,
-  scaleBBoxToNatural,
+  screenshotAnnotationToDisplayLayer,
 } from "../../shared/annotation-utils.mjs";
 import { clampBBoxToImage } from "./annotation";
 import type { BoundingBox, ScreenshotAnnotation } from "./types";
@@ -26,6 +26,10 @@ export function ScreenshotAnnotator({
 }: ScreenshotAnnotatorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [displaySize, setDisplaySize] = useState({ width: 0, height: 0 });
+  const [loadedNaturalSize, setLoadedNaturalSize] = useState({
+    width: naturalWidth,
+    height: naturalHeight,
+  });
   const dragRef = useRef<{
     pointerId: number;
     startX: number;
@@ -38,48 +42,76 @@ export function ScreenshotAnnotator({
     if (!img) {
       return;
     }
+    if (img.naturalWidth > 0 && img.naturalHeight > 0) {
+      setLoadedNaturalSize({
+        width: img.naturalWidth,
+        height: img.naturalHeight,
+      });
+    }
     setDisplaySize({
       width: img.clientWidth,
       height: img.clientHeight,
     });
   }, []);
 
-  useEffect(() => {
-    updateDisplaySize();
-    window.addEventListener("resize", updateDisplaySize);
-    return () => window.removeEventListener("resize", updateDisplaySize);
-  }, [imageUrl, updateDisplaySize]);
+  const effectiveNaturalWidth = loadedNaturalSize.width || naturalWidth;
+  const effectiveNaturalHeight = loadedNaturalSize.height || naturalHeight;
+  const screenshotMeta = {
+    width: effectiveNaturalWidth,
+    height: effectiveNaturalHeight,
+  };
 
-  const displayBBox =
+  const displayLayer =
     displaySize.width > 0
-      ? scaleBBoxToDisplay(
-          annotation.bbox,
-          naturalWidth,
-          naturalHeight,
-          displaySize.width,
-          displaySize.height,
+      ? screenshotAnnotationToDisplayLayer(
+          annotation,
+          screenshotMeta,
+          displaySize,
+          stepNumber,
         )
       : null;
 
+  useEffect(() => {
+    updateDisplaySize();
+    const img = containerRef.current?.querySelector("img");
+    const observer =
+      img && typeof ResizeObserver !== "undefined"
+        ? new ResizeObserver(() => updateDisplaySize())
+        : null;
+    observer?.observe(img as Element);
+    window.addEventListener("resize", updateDisplaySize);
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener("resize", updateDisplaySize);
+    };
+  }, [imageUrl, updateDisplaySize]);
+
   const commitDisplayBBox = (nextDisplayBBox: BoundingBox) => {
-    if (displaySize.width <= 0) {
+    if (!displayLayer || displaySize.width <= 0) {
       return;
     }
-    const naturalBBox = scaleBBoxToNatural(
+    const naturalBBox = displayBBoxToScreenshot(
       nextDisplayBBox,
-      naturalWidth,
-      naturalHeight,
-      displaySize.width,
-      displaySize.height,
+      screenshotMeta,
+      displaySize,
     );
     onChange({
       ...annotation,
-      bbox: clampBBoxToImage(naturalBBox, naturalWidth, naturalHeight),
+      bbox: clampBBoxToImage(
+        naturalBBox,
+        effectiveNaturalWidth,
+        effectiveNaturalHeight,
+      ),
+      coordinateSpace: "screenshotPixels",
+      confidence: "manual",
+      ...(annotation.annotationMode === "clickPoint"
+        ? { annotationMode: "clickPoint" as const }
+        : {}),
     });
   };
 
   const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
-    if (!displayBBox || !annotation.enabled) {
+    if (!displayLayer || !annotation.enabled) {
       return;
     }
     event.preventDefault();
@@ -87,7 +119,7 @@ export function ScreenshotAnnotator({
       pointerId: event.pointerId,
       startX: event.clientX,
       startY: event.clientY,
-      originBBox: displayBBox,
+      originBBox: displayLayer.displayRect,
     };
     event.currentTarget.setPointerCapture(event.pointerId);
   };
@@ -117,17 +149,26 @@ export function ScreenshotAnnotator({
     onChange({ ...annotation, enabled: !annotation.enabled });
   };
 
-  const downloadAnnotatedPng = () => {
+  const downloadAnnotatedPng = async () => {
     const preview = document.createElement("canvas");
-    preview.width = naturalWidth;
-    preview.height = naturalHeight;
+    preview.width = effectiveNaturalWidth;
+    preview.height = effectiveNaturalHeight;
     const ctx = preview.getContext("2d");
-    const img = containerRef.current?.querySelector("img");
-    if (!ctx || !img) {
+    if (!ctx) {
       return;
     }
-    ctx.drawImage(img, 0, 0);
-    drawAnnotationOnCanvas(ctx, annotation, stepNumber, naturalWidth, naturalHeight);
+    const fullImage = new Image();
+    fullImage.crossOrigin = "anonymous";
+    fullImage.src = imageUrl;
+    await fullImage.decode();
+    ctx.drawImage(fullImage, 0, 0);
+    drawAnnotationOnCanvas(
+      ctx,
+      annotation,
+      stepNumber,
+      effectiveNaturalWidth,
+      effectiveNaturalHeight,
+    );
     const url = preview.toDataURL("image/png");
     const link = document.createElement("a");
     link.href = url;
@@ -143,34 +184,53 @@ export function ScreenshotAnnotator({
         onLoad={updateDisplaySize}
       />
 
-      {displayBBox && annotation.enabled ? (
+      {displayLayer && annotation.enabled ? (
         <div
           className="annotation-layer"
-          style={{ width: displaySize.width, height: displaySize.height }}
+          style={{
+            left: `${displayLayer.offset.x}px`,
+            top: `${displayLayer.offset.y}px`,
+            width: `${displayLayer.renderSize.width}px`,
+            height: `${displayLayer.renderSize.height}px`,
+          }}
         >
           <div
-            className="annotation-box"
+            className={
+              annotation.annotationMode === "clickPoint"
+                ? "annotation-box annotation-box--point"
+                : "annotation-box"
+            }
             style={{
-              left: `${displayBBox.x}px`,
-              top: `${displayBBox.y}px`,
-              width: `${displayBBox.w}px`,
-              height: `${displayBBox.h}px`,
+              left: `${displayLayer.displayRect.x}px`,
+              top: `${displayLayer.displayRect.y}px`,
+              width: `${displayLayer.displayRect.w}px`,
+              height: `${displayLayer.displayRect.h}px`,
             }}
             onPointerDown={handlePointerDown}
             onPointerMove={handlePointerMove}
             onPointerUp={handlePointerUp}
             onPointerCancel={handlePointerUp}
-          >
-            {annotation.showStepNumber !== false ? (
-              <span className="annotation-step-badge">{stepNumber}</span>
-            ) : null}
-          </div>
+          />
+
+          {annotation.showStepNumber !== false ? (
+            <span
+              className="annotation-step-badge"
+              style={{
+                left: `${displayLayer.decoration.badge.x}px`,
+                top: `${displayLayer.decoration.badge.y}px`,
+                width: `${displayLayer.decoration.badge.w}px`,
+                height: `${displayLayer.decoration.badge.h}px`,
+              }}
+            >
+              {stepNumber}
+            </span>
+          ) : null}
 
           {annotation.showArrow !== false ? (
             <svg
               className="annotation-arrow"
-              width={displaySize.width}
-              height={displaySize.height}
+              width={displayLayer.renderSize.width}
+              height={displayLayer.renderSize.height}
               aria-hidden
             >
               <defs>
@@ -186,10 +246,10 @@ export function ScreenshotAnnotator({
                 </marker>
               </defs>
               <line
-                x1={Math.min(displaySize.width * 0.12, displayBBox.x - 20)}
-                y1={Math.max(16, displayBBox.y - 48)}
-                x2={displayBBox.x + displayBBox.w / 2}
-                y2={displayBBox.y + displayBBox.h / 2}
+                x1={displayLayer.decoration.arrow.from.x}
+                y1={displayLayer.decoration.arrow.from.y}
+                x2={displayLayer.decoration.arrow.to.x}
+                y2={displayLayer.decoration.arrow.to.y}
                 stroke="#e11d48"
                 strokeWidth="2"
                 markerEnd={`url(#arrowhead-${stepNumber})`}

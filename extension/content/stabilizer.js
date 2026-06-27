@@ -26,38 +26,56 @@
     "aria-hidden",
   ]);
 
-  function isSignificantAction(type, target, dom = null) {
-    if (
-      type === "navigation" ||
-      type === "submit" ||
-      type === "menu_select" ||
-      type === "modal_open"
-    ) {
-      return true;
+  const CAPTURE_MODE = {
+    IMMEDIATE: "IMMEDIATE",
+    DEFERRED: "DEFERRED",
+  };
+
+  /**
+   * Режим захвата скрина для события (T-CLK-3).
+   * @returns {"IMMEDIATE" | "DEFERRED" | null}
+   */
+  function getCaptureMode(type, target, dom = null) {
+    if (type === "navigation") {
+      return CAPTURE_MODE.DEFERRED;
+    }
+
+    if (type === "submit" || type === "menu_select") {
+      return CAPTURE_MODE.IMMEDIATE;
+    }
+
+    if (type === "modal_open" || type === "input" || type === "focus") {
+      return null;
     }
 
     if (type !== "click" || !target) {
-      return false;
+      return null;
     }
 
-    // Клик часто прилетает на вложенный <span>/<svg>/иконку внутри кнопки или ссылки —
-    // поднимаемся к ближайшему интерактивному предку, иначе теряем скрин для шага.
     if (typeof target.closest === "function") {
       const interactive = target.closest(
         'a, button, summary, [role="button"], [role="link"], [type="submit"], [type="button"]',
       );
       if (interactive) {
-        return true;
+        return CAPTURE_MODE.IMMEDIATE;
       }
     }
 
     const tag = target.tagName.toLowerCase();
     if (tag === "a" || tag === "button") {
-      return true;
+      return CAPTURE_MODE.IMMEDIATE;
     }
 
     const role = dom?.inferRole?.(target) ?? target.getAttribute("role");
-    return role === "button" || role === "link";
+    if (role === "button" || role === "link") {
+      return CAPTURE_MODE.IMMEDIATE;
+    }
+
+    return null;
+  }
+
+  function isSignificantAction(type, target, dom = null) {
+    return getCaptureMode(type, target, dom) != null;
   }
 
   function hasVisibleLoaders(doc) {
@@ -197,13 +215,25 @@
       this.quietSince = null;
     }
 
-    onSignificantAction(eventId, ts) {
+    onSignificantAction(eventId, ts, mode = CAPTURE_MODE.DEFERRED) {
       if (this.activeCandidate?.state === "WAITING") {
         this.activeCandidate.state = "SUPERSEDED";
         this.history.push({
           eventId: this.activeCandidate.eventId,
           state: "SUPERSEDED",
         });
+      }
+
+      if (mode === CAPTURE_MODE.IMMEDIATE) {
+        this.activeCandidate = null;
+        this.quietSince = null;
+        this.onCapture({
+          eventId,
+          ts,
+          confidence: "high",
+          immediate: true,
+        });
+        return;
       }
 
       this.activeCandidate = {
@@ -272,11 +302,11 @@
       this.activeCandidate = null;
       this.quietSince = null;
 
-      const captureTs = Math.max(0, Date.now() - this.t0);
       this.onCapture({
         eventId: candidate.eventId,
-        ts: captureTs,
+        ts: candidate.ts,
         confidence,
+        immediate: false,
       });
     }
 
@@ -288,6 +318,8 @@
   const root = typeof window !== "undefined" ? window : globalThis;
   root.TrainingRecorderStabilizer = {
     CONFIG,
+    CAPTURE_MODE,
+    getCaptureMode,
     isSignificantAction,
     hasVisibleLoaders,
     measureLayout,

@@ -15,12 +15,12 @@ const extensionDir = join(__dirname, "..", "extension");
 const popupHtml = readFileSync(join(extensionDir, "popup/popup.html"), "utf8");
 const popupJs = readFileSync(join(extensionDir, "popup/popup.js"), "utf8");
 
-test("T3.1: popup содержит кнопку отправки в редактор и поле адреса сервера", () => {
-  assert.match(popupHtml, /id="editorBtn"/);
-  assert.match(popupHtml, /Отправить и открыть редактор/);
+test("T3.1: popup содержит кнопку редактора и поле адреса сервера", () => {
+  assert.match(popupHtml, /id="openEditorBtn"/);
+  assert.match(popupHtml, /Открыть редактор/);
   assert.match(popupHtml, /id="backendUrlInput"/);
-  assert.match(popupJs, /uploadAndOpenEditor/);
   assert.match(popupJs, /chrome\.tabs\.create/);
+  assert.match(popupJs, /STOP_AND_PROCESS/);
 });
 
 test("T3.1: buildEditorUrl формирует URL редактора", () => {

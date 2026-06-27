@@ -1,6 +1,7 @@
 import { MSG } from "./lib/messages.js";
 import { blobToBase64 } from "./lib/blob-utils.js";
 import { FrameCapture } from "./lib/frame-capture.js";
+import { STABILIZER_CONFIG } from "./lib/stabilizer-config.js";
 import {
   createRecordingMeta,
   finalizeRecordingMeta,
@@ -96,6 +97,29 @@ function stopStream(stream) {
   }
 }
 
+async function acquireTabVideoStream(tabStreamId) {
+  return navigator.mediaDevices.getUserMedia({
+    audio: false,
+    video: {
+      mandatory: {
+        chromeMediaSource: "tab",
+        chromeMediaSourceId: tabStreamId,
+        maxWidth: STABILIZER_CONFIG.CAPTURE_MAX_WIDTH,
+        maxHeight: STABILIZER_CONFIG.CAPTURE_MAX_HEIGHT,
+      },
+    },
+  });
+}
+
+async function acquireDisplayVideoStream() {
+  return navigator.mediaDevices.getDisplayMedia({
+    video: true,
+    audio: false,
+    preferCurrentTab: true,
+    selfBrowserSurface: "include",
+  });
+}
+
 async function startRecording(payload) {
   if (videoRecorder?.state === "recording" || micRecorder?.state === "recording") {
     throw new Error("Запись уже идёт");
@@ -103,21 +127,27 @@ async function startRecording(payload) {
 
   const keepVideo = Boolean(payload.keepVideo);
 
-  const [displayStream, audioStream] = await Promise.all([
-    navigator.mediaDevices.getDisplayMedia({
-      video: true,
-      audio: false,
-      preferCurrentTab: true,
-      selfBrowserSurface: "include",
-    }),
-    navigator.mediaDevices.getUserMedia({
+  const displayStream = payload.tabStreamId
+    ? await acquireTabVideoStream(payload.tabStreamId)
+    : await acquireDisplayVideoStream();
+
+  let audioStream;
+  try {
+    audioStream = await navigator.mediaDevices.getUserMedia({
       audio: true,
       video: false,
-    }),
-  ]);
+    });
+  } catch (error) {
+    const name = error instanceof DOMException ? error.name : "";
+    if (name === "NotAllowedError" || String(error).includes("Permission dismissed")) {
+      throw new Error(
+        "Микрофон не разрешён. Откройте расширение, нажмите «Запись» и выберите «Разрешить» в диалоге Chrome.",
+      );
+    }
+    throw error instanceof Error ? error : new Error(String(error));
+  }
 
-  // t0 фиксируем ПОСЛЕ выбора поверхности в пикере getDisplayMedia. Иначе задержка
-  // пикера (секунды) попадает в micStartOffsetMs и сдвигает голос относительно действий.
+  // t0 — после получения потоков (без пикера «что шарить» при tabCapture).
   const t0 = Date.now();
   let meta = createRecordingMeta({
     recordingId: payload.recordingId,
@@ -127,11 +157,10 @@ async function startRecording(payload) {
     userAgent: navigator.userAgent,
   });
 
-  // Какую поверхность реально выбрал пользователь в пикере. 'browser' = вкладка
-  // (DOM-контекст совпадёт со скринами); 'window'/'monitor' = рассинхрон, предупредим.
   const videoTrack = displayStream.getVideoTracks?.()[0];
-  activeDisplaySurface =
-    videoTrack?.getSettings?.().displaySurface ?? null;
+  activeDisplaySurface = payload.tabStreamId
+    ? "browser"
+    : (videoTrack?.getSettings?.().displaySurface ?? null);
 
   videoStream = displayStream;
   micStream = audioStream;
@@ -170,12 +199,19 @@ async function captureFrames(payload) {
     throw new Error("Запись не активна");
   }
 
-  const result = await frameCapture.captureTriplet({
-    recordingId: activeMeta.recordingId,
-    eventId: payload.eventId,
-    ts: payload.ts,
-    confidence: payload.confidence,
-  });
+  const result = payload.immediate
+    ? await frameCapture.captureSingleFrame({
+        recordingId: activeMeta.recordingId,
+        eventId: payload.eventId,
+        ts: payload.ts,
+        confidence: payload.confidence,
+      })
+    : await frameCapture.captureTriplet({
+        recordingId: activeMeta.recordingId,
+        eventId: payload.eventId,
+        ts: payload.ts,
+        confidence: payload.confidence,
+      });
 
   const screenshots = [];
   for (const shot of result.screenshots) {
@@ -195,9 +231,15 @@ async function captureFrames(payload) {
     });
   }
 
+  const effectiveConfidence =
+    payload.immediate && screenshots.length === 0 ? "low" : payload.confidence;
+
   return {
     ok: true,
-    screenshots,
+    screenshots: screenshots.map((shot) => ({
+      ...shot,
+      confidence: effectiveConfidence,
+    })),
     mainScreenshotId: result.main.id,
   };
 }

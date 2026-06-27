@@ -12,6 +12,11 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = join(__dirname, "..");
 const extensionDir = join(root, "extension");
 
+/** @param {unknown} value */
+function fromDomRealm(value) {
+  return JSON.parse(JSON.stringify(value));
+}
+
 const timelineSchema = JSON.parse(
   readFileSync(join(root, "shared/timeline.schema.json"), "utf8"),
 );
@@ -91,6 +96,52 @@ test("T1.2: bridge-сообщения совпадают с extension/lib/messag
     dom.window.TrainingRecorderMSG.CONTENT_GET_EVENTS,
     MSG.CONTENT_GET_EVENTS,
   );
+  assert.equal(
+    dom.window.TrainingRecorderMSG.CONTENT_OVERLAY_START,
+    MSG.CONTENT_OVERLAY_START,
+  );
+  assert.equal(
+    dom.window.TrainingRecorderMSG.CONTENT_OVERLAY_STOP,
+    MSG.CONTENT_OVERLAY_STOP,
+  );
+  assert.equal(
+    dom.window.TrainingRecorderMSG.STOP_AND_PROCESS,
+    MSG.STOP_AND_PROCESS,
+  );
+});
+
+test("T1.2: overlay показывает плашку REC по CONTENT_OVERLAY_START", () => {
+  const dom = createDomEnvironment("<!doctype html><html><body></body></html>");
+  const { document, window } = dom.window;
+
+  /** @type {((message: unknown) => void) | null} */
+  let overlayListener = null;
+  window.chrome = {
+    runtime: {
+      onMessage: {
+        addListener(listener) {
+          overlayListener = listener;
+        },
+      },
+      sendMessage: () => Promise.resolve({ ok: true }),
+    },
+  };
+
+  for (const relativePath of ["content/bridge.js", "content/overlay.js"]) {
+    const scriptEl = document.createElement("script");
+    scriptEl.textContent = readFileSync(join(extensionDir, relativePath), "utf8");
+    document.body.appendChild(scriptEl);
+  }
+
+  assert.equal(typeof overlayListener, "function");
+
+  overlayListener({ type: MSG.CONTENT_OVERLAY_START, payload: { t0: Date.now() } });
+  const overlay = document.getElementById("training-recorder-overlay");
+  assert.ok(overlay);
+  assert.match(overlay.textContent ?? "", /REC/);
+
+  overlayListener({ type: MSG.CONTENT_OVERLAY_STOP });
+  assert.equal(document.getElementById("training-recorder-overlay"), null);
 });
 
 test("T1.2: клик по кнопке даёт RecEvent с text и bbox", () => {
@@ -100,21 +151,59 @@ test("T1.2: клик по кнопке даёт RecEvent с text и bbox", () =>
   assert.ok(button);
 
   const t0 = Date.now() - 500;
+  const { element, clickPoint } = Dom.resolveClickTarget(button, {
+    clientX: 200,
+    clientY: 400,
+  });
   const event = Dom.createRecEvent({
     id: "evt-test-click",
     type: "click",
-    target: button,
+    target: element,
     t0,
     url: dom.window.location.href,
+    clickPoint,
   });
 
   assert.equal(event.type, "click");
   assert.equal(event.target?.text, "Открыть модалку");
+  assert.equal(event.target?.clickPoint?.x, 200);
+  assert.equal(event.target?.clickPoint?.y, 400);
   assert.equal(typeof event.target?.bbox.x, "number");
   assert.equal(typeof event.target?.bbox.y, "number");
   assert.equal(typeof event.target?.bbox.w, "number");
   assert.equal(typeof event.target?.bbox.h, "number");
   assert.ok(event.ts >= 0);
+  assertValidRecEvent(event);
+});
+
+test("T-CLK-2: клик по span внутри button — text с кнопки, cssPath без span", () => {
+  const dom = createDomEnvironment(`
+    <!doctype html><html><body>
+      <button id="close-box"><span class="icon" aria-hidden="true"></span>Закрыть короб</button>
+    </body></html>
+  `);
+  const { document, TrainingRecorderDom: Dom } = dom.window;
+  const span = document.querySelector("span.icon");
+  assert.ok(span);
+
+  const { element, clickPoint } = Dom.resolveClickTarget(span, {
+    clientX: 612,
+    clientY: 198,
+  });
+  const event = Dom.createRecEvent({
+    id: "evt-span-in-button",
+    type: "click",
+    target: element,
+    t0: Date.now() - 200,
+    url: dom.window.location.href,
+    clickPoint,
+  });
+
+  assert.equal(event.target?.text, "Закрыть короб");
+  assert.equal(event.target?.clickPoint?.x, 612);
+  assert.equal(event.target?.clickPoint?.y, 198);
+  assert.match(event.target?.cssPath ?? "", /#close-box/);
+  assert.ok(!/span/.test(event.target?.cssPath ?? ""));
   assertValidRecEvent(event);
 });
 
@@ -246,4 +335,89 @@ test("T1.2: собранные события валидируются как Ti
   };
 
   assert.equal(validateTimeline(timeline), true);
+});
+
+test("T-ANN-3: buildScreenshotMeta содержит captureContext.devicePixelRatio", () => {
+  const win = loadTestPage().window;
+  for (const relativePath of ["lib/annotation-geometry.js"]) {
+    const scriptEl = win.document.createElement("script");
+    scriptEl.textContent = readFileSync(
+      join(extensionDir, relativePath),
+      "utf8",
+    );
+    win.document.body.appendChild(scriptEl);
+  }
+
+  const viewportBbox = { x: 100, y: 50, w: 200, h: 40 };
+  Object.assign(win, {
+    innerWidth: 1280,
+    innerHeight: 720,
+    devicePixelRatio: 2,
+    scrollX: 0,
+    scrollY: 0,
+    visualViewport: { scale: 1 },
+  });
+
+  const meta = win.TrainingRecorderDom.buildScreenshotMeta({
+    mainShot: {
+      id: "scr-hidpi",
+      ts: 500,
+      confidence: "high",
+      width: 2560,
+      height: 1440,
+    },
+    eventId: "evt-hidpi",
+    events: [{ id: "evt-hidpi", target: { bbox: viewportBbox } }],
+    geometry: win.TrainingRecorderGeometry,
+  });
+
+  assert.equal(meta.captureContext.devicePixelRatio, 2);
+  assert.ok(meta.materializedBbox);
+});
+
+test("T-ANN-3: materialized bbox не равен raw viewport bbox при DPR=2", () => {
+  const win = loadTestPage().window;
+  for (const relativePath of ["lib/annotation-geometry.js"]) {
+    const scriptEl = win.document.createElement("script");
+    scriptEl.textContent = readFileSync(
+      join(extensionDir, relativePath),
+      "utf8",
+    );
+    win.document.body.appendChild(scriptEl);
+  }
+
+  const viewportBbox = { x: 100, y: 50, w: 200, h: 40 };
+  Object.assign(win, {
+    innerWidth: 1280,
+    innerHeight: 720,
+    devicePixelRatio: 2,
+    scrollX: 0,
+    scrollY: 0,
+    visualViewport: { scale: 1 },
+  });
+
+  const meta = win.TrainingRecorderDom.buildScreenshotMeta({
+    mainShot: {
+      id: "scr-hidpi",
+      ts: 500,
+      confidence: "high",
+      width: 2560,
+      height: 1440,
+    },
+    eventId: "evt-hidpi",
+    events: [{ id: "evt-hidpi", target: { bbox: viewportBbox } }],
+    geometry: win.TrainingRecorderGeometry,
+  });
+
+  assert.notDeepEqual(
+    fromDomRealm(meta.materializedBbox),
+    viewportBbox,
+    "viewport coords leaked to materialized bbox",
+  );
+  assert.deepEqual(fromDomRealm(meta.materializedBbox), {
+    x: 200,
+    y: 100,
+    w: 400,
+    h: 80,
+  });
 });

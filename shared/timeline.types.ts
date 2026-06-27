@@ -37,6 +37,12 @@ export interface BoundingBox {
   h: number;
 }
 
+/** Координаты точки: viewport CSS (clientX/clientY) или пиксели bitmap. */
+export interface ClickPoint {
+  x: number;
+  y: number;
+}
+
 export interface ElementContext {
   role: string | null;
   text: string | null;
@@ -47,6 +53,8 @@ export interface ElementContext {
   cssPath: string;
   bbox: BoundingBox;
   masked: boolean;
+  /** Точка клика в viewport CSS (MouseEvent.clientX/clientY). */
+  clickPoint?: ClickPoint;
 }
 
 export interface RecEvent {
@@ -84,6 +92,8 @@ export interface Screenshot {
   captureContext?: CaptureContext;
   /** Bbox целевого элемента в пикселях скриншота, materialize при захвате. */
   materializedBbox?: BoundingBox;
+  /** Точка клика в пикселях bitmap (после transform на захвате). */
+  materializedClickPoint?: ClickPoint;
   /** Уверенность materialize bbox на захвате. */
   annotationConfidence?: "measured" | "invalid";
   candidates?: string[];
@@ -106,6 +116,9 @@ export type AnnotationCoordinateSpace = "screenshotPixels";
 
 export type AnnotationConfidence = "measured" | "inferred" | "manual";
 
+/** Режим подсветки: прямоугольник элемента или точка клика. */
+export type AnnotationMode = "elementRect" | "clickPoint";
+
 export interface ScreenshotAnnotation {
   enabled: boolean;
   bbox: BoundingBox;
@@ -116,6 +129,8 @@ export interface ScreenshotAnnotation {
   materializedFromEventId?: string;
   showArrow?: boolean;
   showStepNumber?: boolean;
+  /** Default для новых записей: clickPoint; старые без поля → elementRect. */
+  annotationMode?: AnnotationMode;
 }
 
 export interface Step {

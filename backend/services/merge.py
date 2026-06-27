@@ -8,6 +8,9 @@ logger = logging.getLogger(__name__)
 # Сегменты речи с паузой короче этого порога сливаются в один якорь (Whisper-оверсплит).
 SPEECH_MERGE_GAP_MS = 400
 
+SIGNIFICANT_ANCHOR_TYPES = frozenset({"click", "submit", "menu_select", "navigation"})
+POINTER_EVENT_TYPES = frozenset({"click", "submit", "menu_select"})
+
 
 class SpeechAnchor(TypedDict):
     start: int
@@ -177,15 +180,91 @@ def _confidence_rank(confidence: str) -> int:
     return 0 if confidence == "high" else 1
 
 
+def _pick_primary_anchor_event(
+    step_events: list[dict[str, Any]],
+    *,
+    speech_start: int,
+    speech_end: int,
+) -> dict[str, Any] | None:
+    """Ближайший значимый клик/submit/navigation к реплике — якорь шага."""
+    anchors = [
+        event
+        for event in step_events
+        if str(event.get("type")) in SIGNIFICANT_ANCHOR_TYPES
+    ]
+    if not anchors:
+        return None
+
+    pointer_events = [
+        event
+        for event in anchors
+        if str(event.get("type")) in POINTER_EVENT_TYPES
+    ]
+    pool = pointer_events if pointer_events else anchors
+    if len(pool) == 1:
+        return pool[0]
+
+    midpoint = (speech_start + speech_end) / 2
+    return min(pool, key=lambda event: abs(int(event["ts"]) - midpoint))
+
+
+def _build_step_event_ids(
+    step_events: list[dict[str, Any]],
+    primary_event: dict[str, Any] | None,
+) -> list[str]:
+    if primary_event is None:
+        return [str(event["id"]) for event in step_events]
+
+    primary_id = str(primary_event["id"])
+    context_events = [
+        event for event in step_events if str(event["id"]) != primary_id
+    ]
+    context_events.sort(key=lambda event: int(event["ts"]))
+    return [primary_id] + [str(event["id"]) for event in context_events]
+
+
 def _pick_screenshot_for_step(
     step_events: list[dict[str, Any]],
     screenshots: list[dict[str, Any]],
     *,
     speech_start: int,
     speech_end: int,
+    primary_event: dict[str, Any] | None = None,
 ) -> tuple[str | None, Literal["high", "low"] | None, list[str]]:
     if not screenshots:
         return None, None, []
+
+    def screenshot_sort_key(screenshot: dict[str, Any]) -> tuple[int, int]:
+        confidence = str(screenshot.get("confidence", "low"))
+        return (_confidence_rank(confidence), -int(screenshot["ts"]))
+
+    pointer_event_ids: set[str] = set()
+    if primary_event is not None and str(primary_event.get("type")) in POINTER_EVENT_TYPES:
+        pointer_event_ids.add(str(primary_event["id"]))
+    else:
+        pointer_event_ids = {
+            str(event["id"])
+            for event in step_events
+            if str(event.get("type")) in POINTER_EVENT_TYPES
+        }
+
+    if pointer_event_ids:
+        pointer_linked = [
+            screenshot
+            for screenshot in screenshots
+            if screenshot.get("eventId") is not None
+            and str(screenshot["eventId"]) in pointer_event_ids
+        ]
+        if pointer_linked:
+            best = min(pointer_linked, key=screenshot_sort_key)
+            confidence = cast(Literal["high", "low"], str(best.get("confidence", "low")))
+            candidates_raw = best.get("candidates")
+            candidates = (
+                [str(candidate) for candidate in candidates_raw]
+                if isinstance(candidates_raw, list)
+                else []
+            )
+            return str(best["id"]), confidence, candidates
 
     event_ids = {str(event["id"]) for event in step_events}
     linked = [
@@ -194,10 +273,6 @@ def _pick_screenshot_for_step(
         if screenshot.get("eventId") is not None
         and str(screenshot["eventId"]) in event_ids
     ]
-
-    def screenshot_sort_key(screenshot: dict[str, Any]) -> tuple[int, int]:
-        confidence = str(screenshot.get("confidence", "low"))
-        return (_confidence_rank(confidence), -int(screenshot["ts"]))
 
     pool = linked if linked else screenshots
 
@@ -242,11 +317,18 @@ def build_preliminary_steps(
         # рассказа), иначе они выпадают из документа.
         window_start = 0 if index == 0 else anchor["start"]
         step_events = _events_for_anchor_window(events, window_start, window_end)
+        primary_event = _pick_primary_anchor_event(
+            step_events,
+            speech_start=anchor["start"],
+            speech_end=anchor["end"],
+        )
+        step_event_ids = _build_step_event_ids(step_events, primary_event)
         screenshot_id, screenshot_confidence, screenshot_candidates = _pick_screenshot_for_step(
             step_events,
             screenshots,
             speech_start=anchor["start"],
             speech_end=anchor["end"],
+            primary_event=primary_event,
         )
 
         steps.append(
@@ -255,7 +337,7 @@ def build_preliminary_steps(
                 speechStart=anchor["start"],
                 speechEnd=anchor["end"],
                 speechText=anchor["text"],
-                eventIds=[str(event["id"]) for event in step_events],
+                eventIds=step_event_ids,
                 events=step_events,
                 screenshotId=screenshot_id,
                 screenshotConfidence=screenshot_confidence,

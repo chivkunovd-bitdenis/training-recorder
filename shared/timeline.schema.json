@@ -87,6 +87,15 @@
         "h": { "type": "number", "minimum": 0 }
       }
     },
+    "ClickPoint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["x", "y"],
+      "properties": {
+        "x": { "type": "number" },
+        "y": { "type": "number" }
+      }
+    },
     "ElementContext": {
       "type": "object",
       "additionalProperties": false,
@@ -110,7 +119,8 @@
         "tag": { "type": "string", "minLength": 1 },
         "cssPath": { "type": "string", "minLength": 1 },
         "bbox": { "$ref": "#/$defs/BoundingBox" },
-        "masked": { "type": "boolean" }
+        "masked": { "type": "boolean" },
+        "clickPoint": { "$ref": "#/$defs/ClickPoint" }
       }
     },
     "RecEvent": {
@@ -153,6 +163,7 @@
         "viewportHeight": { "type": "integer", "minimum": 1 },
         "captureContext": { "$ref": "#/$defs/CaptureContext" },
         "materializedBbox": { "$ref": "#/$defs/BoundingBox" },
+        "materializedClickPoint": { "$ref": "#/$defs/ClickPoint" },
         "annotationConfidence": {
           "type": "string",
           "enum": ["measured", "invalid"]
@@ -232,7 +243,11 @@
         },
         "materializedFromEventId": { "type": "string", "minLength": 1 },
         "showArrow": { "type": "boolean" },
-        "showStepNumber": { "type": "boolean" }
+        "showStepNumber": { "type": "boolean" },
+        "annotationMode": {
+          "type": "string",
+          "enum": ["elementRect", "clickPoint"]
+        }
       }
     },
     "GeneratedDoc": {

@@ -15,8 +15,8 @@ import {
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = join(__dirname, "..");
 
-const offscreenSource = readFileSync(
-  join(root, "extension/offscreen.js"),
+const serviceWorkerSource = readFileSync(
+  join(root, "extension/service-worker.js"),
   "utf8",
 );
 const timelineSchema = JSON.parse(
@@ -27,14 +27,31 @@ const ajv = new Ajv2020({ allErrors: true, strict: false });
 addFormats(ajv);
 const validateMeta = ajv.compile(timelineSchema.$defs.RecordingMeta);
 
-test("T1.1: offscreen пишет видео вкладки и микрофон раздельно", () => {
-  assert.match(offscreenSource, /getDisplayMedia\(/);
-  assert.match(offscreenSource, /audio:\s*false/);
-  assert.match(offscreenSource, /getUserMedia\(/);
-  assert.match(offscreenSource, /video:\s*false/);
-  assert.match(offscreenSource, /videoRecorder/);
-  assert.match(offscreenSource, /micRecorder/);
-  assert.match(offscreenSource, /micBase64/);
+test("T1.1: устойчивый workflow, overlay и pipeline", () => {
+  const workflowSource = readFileSync(
+    join(root, "extension/lib/workflow-state.js"),
+    "utf8",
+  );
+  const overlaySource = readFileSync(
+    join(root, "extension/content/overlay.js"),
+    "utf8",
+  );
+  const pipelineSource = readFileSync(
+    join(root, "extension/lib/process-pipeline.js"),
+    "utf8",
+  );
+  assert.match(workflowSource, /trWorkflow/);
+  assert.match(overlaySource, /STOP_AND_PROCESS/);
+  assert.match(pipelineSource, /runFullPipeline/);
+  assert.match(serviceWorkerSource, /tabCapture\.getMediaStreamId/);
+  assert.match(serviceWorkerSource, /stopAndProcess/);
+});
+
+test("T1.1: popup восстанавливает workflow из storage", () => {
+  const popupSource = readFileSync(join(root, "extension/popup/popup.js"), "utf8");
+  assert.match(popupSource, /renderWorkflow/);
+  assert.match(popupSource, /trWorkflow/);
+  assert.match(popupSource, /STOP_AND_PROCESS/);
 });
 
 test("T1.1: meta фиксирует смещения старта и длительности дорожек", () => {

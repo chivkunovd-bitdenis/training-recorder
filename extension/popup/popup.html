@@ -11,41 +11,52 @@
       <h1>Training Recorder</h1>
       <p id="status" class="status">Готов к записи</p>
 
-      <section id="consentPanel" class="consent-panel">
-        <p class="consent-title">Перед записью</p>
-        <p class="consent-intro">Записывается:</p>
-        <ul class="consent-list">
-          <li>видео активной вкладки;</li>
-          <li>ваш голос с микрофона;</li>
-          <li>действия и тексты элементов на странице.</li>
-        </ul>
-        <p class="consent-note">
-          Пароли и поля, помеченные как чувствительные, скрываются в тексте до отправки.
-          Важно: на <strong>скриншотах и видео</strong> остаётся всё, что видно на экране
-          — не показывайте чужие персональные данные во время записи.
-          Данные отправляются на сервер для генерации инструкции
-          (транскрипция через OpenAI Whisper).
-        </p>
-        <label class="consent-checkbox">
-          <input id="consentCheckbox" type="checkbox" />
-          <span>Я понимаю и согласен</span>
-        </label>
-      </section>
-
-      <p class="record-hint">
-        После «Запись» окно закроется — это нормально. Выберите <strong>эту вкладку</strong> в диалоге Chrome.
-        Пока идёт запись, на иконке будет <strong>REC</strong>. Чтобы остановить — снова откройте расширение.
-      </p>
-
-      <div class="actions">
-        <button id="startBtn" type="button" disabled>Запись</button>
-        <button id="stopBtn" type="button" disabled>Стоп</button>
+      <div id="progressWrap" class="progress-wrap" hidden>
+        <div class="progress-track">
+          <div id="progressFill" class="progress-fill"></div>
+        </div>
+        <p id="progressLabel" class="progress-label"></p>
       </div>
 
-      <label class="keep-video">
-        <input id="keepVideoCheckbox" type="checkbox" />
-        <span>Сохранять видеофайл (тяжелее; для скринов не нужен)</span>
-      </label>
+      <section id="idleSection">
+        <section id="consentPanel" class="consent-panel">
+          <p class="consent-title">Перед записью</p>
+          <p class="consent-intro">Записывается голос, действия на странице и скрины.</p>
+          <p class="consent-note">
+            Данные уходят на сервер: Whisper расшифровывает речь, затем открывается редактор инструкции.
+          </p>
+          <label class="consent-checkbox">
+            <input id="consentCheckbox" type="checkbox" />
+            <span>Я понимаю и согласен</span>
+          </label>
+        </section>
+
+        <label class="keep-video">
+          <input id="keepVideoCheckbox" type="checkbox" />
+          <span>Сохранять видеофайл (не обязательно)</span>
+        </label>
+
+        <button id="startBtn" type="button" class="primary-btn" disabled>Запись</button>
+      </section>
+
+      <section id="activeSection" class="hidden">
+        <p id="recordingHint" class="active-hint">
+          На странице справа внизу — плашка <strong>● REC</strong>. Остановить можно там или кнопкой ниже.
+        </p>
+        <p id="processingHint" class="active-hint" hidden>
+          Запись остановлена, идёт обработка на сервере. Плашка на странице уже скрыта — ждите здесь.
+        </p>
+        <button id="stopBtn" type="button" class="stop-btn">Остановить и отправить</button>
+      </section>
+
+      <section id="readySection" class="hidden">
+        <button id="openEditorBtn" type="button" class="primary-btn">Открыть редактор</button>
+        <button id="newRecordingBtn" type="button" class="secondary-btn">Новая запись</button>
+      </section>
+
+      <section id="errorSection" class="hidden">
+        <button id="retryBtn" type="button" class="secondary-btn">Попробовать снова</button>
+      </section>
 
       <label class="backend-url">
         <span>Адрес сервера</span>
@@ -53,16 +64,11 @@
           id="backendUrlInput"
           type="url"
           value="https://training-recorder-production.up.railway.app"
-          placeholder="https://training-recorder-production.up.railway.app"
         />
       </label>
 
-      <button id="editorBtn" type="button" class="editor-btn" hidden>
-        Отправить и открыть редактор
-      </button>
-
       <button id="deleteBtn" type="button" class="delete-btn" hidden>
-        Удалить запись и все артефакты
+        Удалить последнюю запись на сервере
       </button>
 
       <p id="error" class="error" hidden></p>

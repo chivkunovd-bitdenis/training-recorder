@@ -505,6 +505,8 @@ on significant_action(eventId):
 **Тест приёмки:**
 - На скрине шага «нажмите Создать» автоматически появляется рамка вокруг кнопки; её можно подвинуть; экспорт содержит аннотированный скрин.
 
+> **Примечание (эпик T-CLK, 2026-06):** ранее в TASK-27/T-ANN приоритет `input`/`modal_open` над `click` в одном шаге («решение F») смягчён для **pointer events**: аннотация и скрин якорятся на **клик** и **`clickPoint`**, а `modal_open` — контекст следующего шага. См. [`docs/CLICK_FIRST_CAPTURE_TASKS.md`](docs/CLICK_FIRST_CAPTURE_TASKS.md) и [`docs/CHROME_EXTENSION.md`](docs/CHROME_EXTENSION.md) § «Клик = шаг».
+
 ---
 
 ## T3.3 — Экспорт

@@ -1,0 +1,130 @@
+{
+  "cases": [
+    {
+      "id": "dpr1-top-left",
+      "viewport": { "width": 1440, "height": 900 },
+      "image": { "width": 1440, "height": 900 },
+      "devicePixelRatio": 1,
+      "scrollY": 0,
+      "viewportBbox": { "x": 100, "y": 80, "w": 120, "h": 36 },
+      "expectedScreenshotBbox": { "x": 100, "y": 80, "w": 120, "h": 36 }
+    },
+    {
+      "id": "dpr2-retina",
+      "viewport": { "width": 1280, "height": 720 },
+      "image": { "width": 2560, "height": 1440 },
+      "devicePixelRatio": 2,
+      "scrollY": 0,
+      "viewportBbox": { "x": 100, "y": 50, "w": 200, "h": 40 },
+      "expectedScreenshotBbox": { "x": 200, "y": 100, "w": 400, "h": 80 },
+      "decorationViewportBbox": { "x": 1000, "y": 50, "w": 200, "h": 40 },
+      "decorationMinArrowFromX": 100
+    },
+    {
+      "id": "dpr2-scrolled",
+      "viewport": { "width": 1280, "height": 720 },
+      "image": { "width": 2560, "height": 1440 },
+      "devicePixelRatio": 2,
+      "scrollY": 600,
+      "viewportBbox": { "x": 400, "y": 200, "w": 100, "h": 30 },
+      "expectedScreenshotBbox": { "x": 800, "y": 400, "w": 200, "h": 60 }
+    },
+    {
+      "id": "letterbox-wide",
+      "viewport": { "width": 1280, "height": 720 },
+      "image": { "width": 2560, "height": 1440 },
+      "devicePixelRatio": 2,
+      "scrollY": 0,
+      "screenshotBbox": { "x": 1000, "y": 200, "w": 400, "h": 80 },
+      "display": { "width": 960, "height": 360 },
+      "expectedDisplayRectX": 250,
+      "expectedOffsetY": 0,
+      "displayTolerance": 2
+    },
+    {
+      "id": "prod-drift-left",
+      "regression": true,
+      "viewport": { "width": 1280, "height": 720 },
+      "image": { "width": 2560, "height": 1440 },
+      "devicePixelRatio": 2,
+      "scrollY": 0,
+      "viewportBbox": { "x": 1120, "y": 84, "w": 168, "h": 40 },
+      "expectedScreenshotBbox": { "x": 2240, "y": 168, "w": 336, "h": 80 },
+      "expectedResolvedBbox": { "x": 2240, "y": 168, "w": 320, "h": 80 },
+      "display": { "width": 960, "height": 360 },
+      "displayMinRatioX": 0.5
+    },
+    {
+      "id": "scroll-table",
+      "regression": true,
+      "viewport": { "width": 1280, "height": 720 },
+      "image": { "width": 2560, "height": 1440 },
+      "devicePixelRatio": 2,
+      "scrollY": 400,
+      "viewportBbox": { "x": 200, "y": 300, "w": 120, "h": 28 },
+      "expectedScreenshotBbox": { "x": 400, "y": 600, "w": 240, "h": 56 },
+      "display": { "width": 960, "height": 360 }
+    },
+    {
+      "id": "no-context-legacy",
+      "regression": true,
+      "legacyViewportOnly": true,
+      "viewport": { "width": 1280, "height": 720 },
+      "image": { "width": 2560, "height": 1440 },
+      "viewportBbox": { "x": 100, "y": 50, "w": 200, "h": 40 },
+      "expectedScreenshotBbox": { "x": 200, "y": 100, "w": 400, "h": 80 },
+      "display": { "width": 960, "height": 360 }
+    },
+    {
+      "id": "letterbox-preview",
+      "regression": true,
+      "viewport": { "width": 1280, "height": 720 },
+      "image": { "width": 2560, "height": 1440 },
+      "devicePixelRatio": 2,
+      "scrollY": 0,
+      "screenshotBbox": { "x": 1800, "y": 400, "w": 300, "h": 60 },
+      "display": { "width": 960, "height": 360 },
+      "displayMinX": 0
+    },
+    {
+      "id": "badge-near-top",
+      "regression": true,
+      "viewport": { "width": 1280, "height": 720 },
+      "image": { "width": 2560, "height": 1440 },
+      "devicePixelRatio": 2,
+      "scrollY": 0,
+      "viewportBbox": { "x": 400, "y": 5, "w": 120, "h": 32 },
+      "expectedScreenshotBbox": { "x": 800, "y": 10, "w": 240, "h": 64 },
+      "display": { "width": 960, "height": 360 },
+      "expectBadgeInsideHighlight": true
+    },
+    {
+      "id": "wms-two-rows-click-point",
+      "regression": true,
+      "wmsFixture": true,
+      "viewport": { "width": 1280, "height": 720 },
+      "image": { "width": 2560, "height": 1440 },
+      "devicePixelRatio": 2,
+      "scrollY": 0,
+      "sharedCssPath": "table.wms-table > tbody > tr > td.actions > button.row-action",
+      "row1ClickPoint": { "x": 280, "y": 220 },
+      "row2ClickPoint": { "x": 1140, "y": 460 },
+      "row1MaterializedClickPoint": { "x": 560, "y": 440 },
+      "row2MaterializedClickPoint": { "x": 2280, "y": 920 },
+      "minPointDistancePx": 100,
+      "rightClickMinArrowRatioX": 0.05,
+      "display": { "width": 960, "height": 540 }
+    },
+    {
+      "id": "invalid-bbox",
+      "regression": true,
+      "viewport": { "width": 1280, "height": 720 },
+      "image": { "width": 2560, "height": 1440 },
+      "devicePixelRatio": 2,
+      "scrollY": 0,
+      "viewportBbox": { "x": -50, "y": 100, "w": 200, "h": 40 },
+      "expectValidateOk": false,
+      "display": { "width": 960, "height": 360 }
+    }
+  ]
+}

@@ -17,11 +17,33 @@ export interface Screenshot {
   id: string;
   width: number;
   height: number;
+  viewportWidth?: number;
+  viewportHeight?: number;
+  captureContext?: {
+    viewportWidth: number;
+    viewportHeight: number;
+    devicePixelRatio: number;
+    scrollX?: number;
+    scrollY?: number;
+    visualViewportScale?: number;
+  };
+  materializedBbox?: BoundingBox;
+  materializedClickPoint?: { x: number; y: number };
+  annotationConfidence?: "measured" | "invalid";
+  eventId?: string | null;
 }
+
+export type AnnotationCoordinateSpace = "screenshotPixels";
+export type AnnotationConfidence = "measured" | "inferred" | "manual";
+export type AnnotationMode = "elementRect" | "clickPoint";
 
 export interface ScreenshotAnnotation {
   enabled: boolean;
   bbox: BoundingBox;
+  coordinateSpace?: AnnotationCoordinateSpace;
+  confidence?: AnnotationConfidence;
+  materializedFromEventId?: string;
+  annotationMode?: AnnotationMode;
   showArrow?: boolean;
   showStepNumber?: boolean;
 }

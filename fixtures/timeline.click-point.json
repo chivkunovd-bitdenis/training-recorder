@@ -1,0 +1,78 @@
+{
+  "meta": {
+    "recordingId": "rec-click-point-demo",
+    "t0": 1719403200000,
+    "url": "https://app.example.com/warehouse",
+    "title": "ClickPoint demo",
+    "durationMs": 3000,
+    "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+    "videoStartOffsetMs": 0,
+    "micStartOffsetMs": 0,
+    "videoDurationMs": 3000,
+    "micDurationMs": 3000
+  },
+  "events": [
+    {
+      "id": "evt-cp-001",
+      "type": "click",
+      "ts": 800,
+      "url": "https://app.example.com/warehouse",
+      "target": {
+        "role": "button",
+        "text": "Закрыть короб",
+        "placeholder": null,
+        "label": null,
+        "nearbyText": "Склад",
+        "tag": "button",
+        "cssPath": "main > button.close-box",
+        "bbox": { "x": 520, "y": 180, "w": 140, "h": 36 },
+        "masked": false,
+        "clickPoint": { "x": 612, "y": 198 }
+      }
+    }
+  ],
+  "screenshots": [
+    {
+      "id": "scr-cp-001",
+      "ts": 900,
+      "eventId": "evt-cp-001",
+      "confidence": "high",
+      "width": 2560,
+      "height": 1440,
+      "captureContext": {
+        "viewportWidth": 1280,
+        "viewportHeight": 720,
+        "devicePixelRatio": 2,
+        "scrollX": 0,
+        "scrollY": 0
+      },
+      "materializedClickPoint": { "x": 1224, "y": 396 }
+    }
+  ],
+  "generatedDoc": {
+    "title": "Закрыть короб",
+    "purpose": "Test clickPoint contract",
+    "audience": "Operators",
+    "prerequisites": "None",
+    "steps": [
+      {
+        "id": "step-1",
+        "title": "Нажать «Закрыть короб»",
+        "body": "Кликните по кнопке закрытия короба.",
+        "screenshotId": "scr-cp-001",
+        "eventIds": ["evt-cp-001"],
+        "needsReview": false,
+        "screenshotAnnotation": {
+          "enabled": true,
+          "bbox": { "x": 1040, "y": 360, "w": 280, "h": 72 },
+          "coordinateSpace": "screenshotPixels",
+          "confidence": "measured",
+          "materializedFromEventId": "evt-cp-001",
+          "annotationMode": "clickPoint"
+        }
+      }
+    ],
+    "warnings": [],
+    "result": "Короб закрыт"
+  }
+}

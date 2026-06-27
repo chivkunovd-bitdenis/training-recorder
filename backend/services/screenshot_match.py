@@ -8,6 +8,8 @@ from backend.services.generate import GeneratedDoc
 
 logger = logging.getLogger(__name__)
 
+POINTER_EVENT_TYPES = frozenset({"click", "submit", "menu_select"})
+
 
 class RefinedStep(TypedDict):
     id: str
@@ -59,6 +61,18 @@ def _linked_screenshots(
         if screenshot.get("eventId") is not None
         and str(screenshot["eventId"]) in event_ids
     ]
+
+
+def _pointer_event_ids(
+    event_ids: set[str],
+    events_by_id: dict[str, dict[str, Any]],
+) -> set[str]:
+    return {
+        event_id
+        for event_id in event_ids
+        if event_id in events_by_id
+        and str(events_by_id[event_id].get("type")) in POINTER_EVENT_TYPES
+    }
 
 
 def _nearest_screenshot(
@@ -123,8 +137,18 @@ def match_step_screenshot(
         return None, True, []
 
     event_ids = {str(event_id) for event_id in step.get("eventIds", [])}
+    pointer_ids = _pointer_event_ids(event_ids, events_by_id)
+    pointer_linked = _linked_screenshots(pointer_ids, screenshots) if pointer_ids else []
     linked = _linked_screenshots(event_ids, screenshots)
     midpoint_ts = _step_midpoint_ts(step, events_by_id)
+
+    if pointer_linked:
+        primary = min(pointer_linked, key=_screenshot_sort_key)
+        confidence = str(primary.get("confidence", "low"))
+        needs_review = confidence != "high"
+        candidate_pool = linked if linked else pointer_linked
+        candidates = _build_candidate_ids(primary, candidate_pool)
+        return str(primary["id"]), needs_review, candidates
 
     if linked:
         primary = min(linked, key=_screenshot_sort_key)

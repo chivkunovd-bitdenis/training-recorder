@@ -1,0 +1,71 @@
+{
+  "meta": {
+    "recordingId": "rec-hidpi-scrolled",
+    "t0": 1719403200000,
+    "url": "https://app.example.com/clients",
+    "title": "HiDPI scrolled — Example CRM",
+    "durationMs": 185000,
+    "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+    "videoStartOffsetMs": 42,
+    "micStartOffsetMs": 58,
+    "videoDurationMs": 184900,
+    "micDurationMs": 184880
+  },
+  "events": [
+    {
+      "id": "evt-001",
+      "type": "click",
+      "ts": 1200,
+      "url": "https://app.example.com/clients",
+      "target": {
+        "role": "button",
+        "text": "Создать клиента",
+        "placeholder": null,
+        "label": null,
+        "nearbyText": "Список клиентов",
+        "tag": "button",
+        "cssPath": "main > div.clients-header > button.btn-primary",
+        "bbox": { "x": 1120, "y": 84, "w": 168, "h": 40 },
+        "masked": false
+      }
+    },
+    {
+      "id": "evt-002",
+      "type": "modal_open",
+      "ts": 1450,
+      "url": "https://app.example.com/clients",
+      "target": {
+        "role": "dialog",
+        "text": "Новый клиент",
+        "placeholder": null,
+        "label": null,
+        "nearbyText": null,
+        "tag": "div",
+        "cssPath": "div[role=dialog]#client-modal",
+        "bbox": { "x": 320, "y": 120, "w": 640, "h": 520 },
+        "masked": false
+      }
+    }
+  ],
+  "screenshots": [
+    {
+      "id": "scr-001",
+      "ts": 2100,
+      "eventId": "evt-001",
+      "confidence": "high",
+      "width": 2560,
+      "height": 1440,
+      "viewportWidth": 1280,
+      "viewportHeight": 720,
+      "captureContext": {
+        "viewportWidth": 1280,
+        "viewportHeight": 720,
+        "devicePixelRatio": 2,
+        "scrollX": 0,
+        "scrollY": 0
+      },
+      "materializedBbox": { "x": 2240, "y": 168, "w": 320, "h": 80 },
+      "annotationConfidence": "measured"
+    }
+  ]
+}

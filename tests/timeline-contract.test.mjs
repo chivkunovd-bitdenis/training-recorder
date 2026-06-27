@@ -18,6 +18,9 @@ const mockTimeline = JSON.parse(
 const captureContextTimeline = JSON.parse(
   readFileSync(join(root, "fixtures/timeline.capture-context.json"), "utf8"),
 );
+const clickPointTimeline = JSON.parse(
+  readFileSync(join(root, "fixtures/timeline.click-point.json"), "utf8"),
+);
 
 const ajv = new Ajv2020({ allErrors: true, strict: false });
 addFormats(ajv);
@@ -77,6 +80,40 @@ test("screenshotAnnotation с coordinateSpace viewport отклоняется с
   assert.ok(
     validate.errors?.some((e) =>
       e.instancePath.includes("coordinateSpace"),
+    ),
+  );
+});
+
+test("fixtures/timeline.click-point.json проходит валидацию с clickPoint и annotationMode", () => {
+  const valid = validate(clickPointTimeline);
+  if (!valid) {
+    assert.fail(
+      `Схема отклонила click-point fixture: ${JSON.stringify(validate.errors, null, 2)}`,
+    );
+  }
+  assert.equal(valid, true);
+
+  const clickEvent = clickPointTimeline.events[0];
+  assert.deepEqual(clickEvent.target.clickPoint, { x: 612, y: 198 });
+
+  const screenshot = clickPointTimeline.screenshots[0];
+  assert.deepEqual(screenshot.materializedClickPoint, { x: 1224, y: 396 });
+
+  const annotation =
+    clickPointTimeline.generatedDoc.steps[0].screenshotAnnotation;
+  assert.equal(annotation.annotationMode, "clickPoint");
+});
+
+test("screenshotAnnotation с annotationMode viewport отклоняется схемой", () => {
+  const invalid = structuredClone(clickPointTimeline);
+  invalid.generatedDoc.steps[0].screenshotAnnotation.annotationMode =
+    "viewport";
+
+  const valid = validate(invalid);
+  assert.equal(valid, false);
+  assert.ok(
+    validate.errors?.some((e) =>
+      e.instancePath.includes("annotationMode"),
     ),
   );
 });

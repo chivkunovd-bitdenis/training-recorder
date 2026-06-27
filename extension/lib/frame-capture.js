@@ -18,6 +18,8 @@ export class FrameCapture {
     this.t0 = null;
     /** @type {number | null} */
     this.bufferTimer = null;
+    /** @type {ImageCapture | null} */
+    this.imageCapture = null;
   }
 
   /**
@@ -28,6 +30,17 @@ export class FrameCapture {
     this.t0 = t0;
     this.video.srcObject = stream;
     void this.video.play();
+
+    const track = stream.getVideoTracks?.()[0];
+    this.imageCapture = null;
+    if (track && typeof ImageCapture !== "undefined") {
+      try {
+        this.imageCapture = new ImageCapture(track);
+      } catch {
+        this.imageCapture = null;
+      }
+    }
+
     this.bufferTimer = window.setInterval(() => {
       void this.pushBufferSnapshot();
     }, CONFIG.BUFFER_INTERVAL);
@@ -40,6 +53,7 @@ export class FrameCapture {
     }
     this.video.pause();
     this.video.srcObject = null;
+    this.imageCapture = null;
     this.buffer = [];
     this.t0 = null;
   }
@@ -58,26 +72,66 @@ export class FrameCapture {
     }
   }
 
-  async captureCurrentFrame() {
+  /**
+   * @returns {Promise<Blob | null>}
+   */
+  canvasToBlob() {
+    return new Promise((resolve) => {
+      this.canvas.toBlob(
+        (blob) => resolve(blob),
+        CONFIG.CAPTURE_MIME_TYPE,
+        CONFIG.CAPTURE_JPEG_QUALITY,
+      );
+    });
+  }
+
+  /**
+   * ImageCapture.grabFrame() даёт нативный кадр трека без артефактов декодера <video>.
+   * @returns {Promise<{ width: number; height: number; blob: Blob } | null>}
+   */
+  async captureFrameBitmap() {
+    if (this.imageCapture) {
+      try {
+        const bitmap = await this.imageCapture.grabFrame();
+        const width = bitmap.width;
+        const height = bitmap.height;
+        this.canvas.width = width;
+        this.canvas.height = height;
+        const ctx = this.canvas.getContext("2d");
+        if (!ctx) {
+          bitmap.close();
+          return null;
+        }
+        ctx.drawImage(bitmap, 0, 0, width, height);
+        bitmap.close();
+        const blob = await this.canvasToBlob();
+        return blob ? { width, height, blob } : null;
+      } catch {
+        // fallback — video + canvas
+      }
+    }
+
     if (!this.video.videoWidth || !this.video.videoHeight) {
       return null;
     }
 
-    this.canvas.width = this.video.videoWidth;
-    this.canvas.height = this.video.videoHeight;
+    const width = this.video.videoWidth;
+    const height = this.video.videoHeight;
+    this.canvas.width = width;
+    this.canvas.height = height;
     const ctx = this.canvas.getContext("2d");
     if (!ctx) {
       return null;
     }
-    ctx.drawImage(this.video, 0, 0, this.canvas.width, this.canvas.height);
+    ctx.drawImage(this.video, 0, 0, width, height);
 
-    return new Promise((resolve) => {
-      this.canvas.toBlob(
-        (blob) => resolve(blob),
-        "image/jpeg",
-        0.85,
-      );
-    });
+    const blob = await this.canvasToBlob();
+    return blob ? { width, height, blob } : null;
+  }
+
+  async captureCurrentFrame() {
+    const frame = await this.captureFrameBitmap();
+    return frame?.blob ?? null;
   }
 
   /**
@@ -103,19 +157,85 @@ export class FrameCapture {
   /**
    * @param {{ recordingId: string; eventId: string; ts: number; confidence: "high" | "low" }} params
    */
+  /**
+   * Один кадр на клик — без triplet loop (T-CLK-3).
+   * @param {{ recordingId: string; eventId: string; ts: number; confidence: "high" | "low"; delayMs?: number }} params
+   */
+  async captureSingleFrame({
+    recordingId,
+    eventId,
+    ts,
+    confidence,
+    delayMs = CONFIG.IMMEDIATE_CAPTURE_DELAY_MS,
+  }) {
+    const mainId = `scr-${recordingId}-${eventId}-0`;
+
+    if (delayMs > 0) {
+      await sleep(delayMs);
+    }
+
+    let captured = await this.captureFrameBitmap();
+    if (!captured && CONFIG.IMMEDIATE_CAPTURE_FALLBACK_MS > 0) {
+      await sleep(CONFIG.IMMEDIATE_CAPTURE_FALLBACK_MS);
+      captured = await this.captureFrameBitmap();
+    }
+
+    if (!captured) {
+      return {
+        main: { id: mainId, candidates: [] },
+        screenshots: [],
+      };
+    }
+
+    const screenshot = {
+      id: mainId,
+      ts,
+      eventId,
+      confidence,
+      width: captured.width,
+      height: captured.height,
+      blob: captured.blob,
+      isMain: true,
+      candidates: [],
+    };
+
+    return {
+      main: screenshot,
+      screenshots: [screenshot],
+    };
+  }
+
   async captureTriplet({ recordingId, eventId, ts, confidence }) {
     const offsets = CONFIG.FRAME_OFFSETS_MS;
-    const blobs = [];
+    /** @type {{ blob: Blob; width: number; height: number }[]} */
+    const frames = [];
 
     for (const offset of offsets) {
       if (offset < 0) {
         const buffered = this.findBufferedFrame(ts + offset);
-        blobs.push(buffered ?? (await this.captureCurrentFrame()));
+        if (buffered) {
+          frames.push({
+            blob: buffered,
+            width: this.canvas.width,
+            height: this.canvas.height,
+          });
+        } else {
+          const captured = await this.captureFrameBitmap();
+          if (captured) {
+            frames.push(captured);
+          }
+        }
       } else if (offset > 0) {
         await sleep(offset);
-        blobs.push(await this.captureCurrentFrame());
+        const captured = await this.captureFrameBitmap();
+        if (captured) {
+          frames.push(captured);
+        }
       } else {
-        blobs.push(await this.captureCurrentFrame());
+        const captured = await this.captureFrameBitmap();
+        if (captured) {
+          frames.push(captured);
+        }
       }
     }
 
@@ -124,18 +244,25 @@ export class FrameCapture {
     );
     const mainIndex = 1;
 
-    const screenshots = blobs.map((blob, index) => ({
+    const screenshots = frames.map((frame, index) => ({
       id: screenshotIds[index],
       ts: ts + offsets[index],
       eventId: index === mainIndex ? eventId : null,
       confidence,
-      width: this.canvas.width,
-      height: this.canvas.height,
-      blob,
+      width: frame.width,
+      height: frame.height,
+      blob: frame.blob,
       isMain: index === mainIndex,
     }));
 
     const main = screenshots[mainIndex];
+    if (!main) {
+      return {
+        main: { id: screenshotIds[mainIndex], candidates: [] },
+        screenshots,
+      };
+    }
+
     main.eventId = eventId;
     main.candidates = screenshotIds.filter((id) => id !== main.id);
 

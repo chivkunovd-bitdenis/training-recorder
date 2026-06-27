@@ -1,5 +1,239 @@
 # TASKLOG
 
+## TASK-40 — 2026-06-27 — T-CLK-8: документация и UX редактора (clickPoint)
+
+**Что сделано:**
+- **docs/CHROME_EXTENSION.md** — раздел «Клик = шаг», таблица полей clickPoint, правило modal = следующий шаг
+- **PLAN.md** — примечание: решение F смягчено для pointer events (ссылка на CLICK_FIRST)
+- **editor/App.tsx + App.css** — hint «Подсветка: точка нажатия» при clickPoint + measured (без жёлтой плашки)
+- **annotation-utils.mjs** — shouldShowAnnotationWarning явно для clickPoint + measured
+- **tests/annotation-confidence-ui.test.mjs** — T-CLK-8 acceptance + проверка текста документа
+- **editor/dist** пересобран
+
+**Проверка:** `make check` — 132 npm + 61 pytest, ruff, mypy green
+
+## TASK-39 — 2026-06-27 — T-CLK-7: WMS regression (таблица, clickPoint vs cssPath)
+
+**Что сделано:**
+- **fixtures/timeline.wms-table-clicks.json** — 2 клика в разных строках, один cssPath, разные clickPoint
+- **fixtures/annotation-matrix.json** — кейс `wms-two-rows-click-point`
+- **tests/annotation-wms-table.test.mjs** — 4 теста: distance > 100px, стрелка справа, legacy cssPath collapse
+- **tests/annotation-regression.test.mjs** — pipeline по WMS fixture
+
+**Что НЕ менялось:** docs/UX редактора (T-CLK-8)
+
+**Проверка:** `npm run typecheck && npm test` — 129 tests, 0 fail
+
+## TASK-38 — 2026-06-27 — T-CLK-6: merge + LLM якорь на клик
+
+**Что сделано:**
+- **merge.py:** primary anchor = nearest click/submit/menu_select/navigation; screenshot приоритет pointer eventId
+- **screenshot_match.py:** `match_step_screenshot` не выбирает modal_open, если есть click-скрин
+- **generate_doc.md:** правила primary click, заголовок по кнопке, modal_open не якорь
+- **tests/backend/test_merge_click_anchor.py** — 2 теста; обновлены merge_t23, screenshot_match_t25
+
+**Что НЕ менялось:** WMS regression (T-CLK-7), docs/UX (T-CLK-8)
+
+**Проверка:** `make backend-check` — 61 pytest, ruff, mypy green
+
+## TASK-37 — 2026-06-27 — T-CLK-5: resolve + render clickPoint
+
+**Что сделано:**
+- **annotation-geometry.mjs:** `resolveDecorationLayoutForPoint` — круг/стрелка badge → точка клика
+- **annotation-utils.mjs:** `resolveStepAnnotation` по `materializedClickPoint`, `annotationMode: clickPoint`; упрощён `pickAnnotationEventForScreenshot`
+- **ScreenshotAnnotator.tsx / App.css:** режим point (круг), drag → `confidence: manual`
+- **tests/annotation-click-point.test.mjs** — 3 теста приёмки
+
+**Что НЕ менялось:** merge/LLM якорь (T-CLK-6), docs/UX (T-CLK-8)
+
+**Проверка:** `npm run typecheck && npm test` — 124 tests, 0 fail; `editor` rebuild
+
+## TASK-36 — 2026-06-27 — T-CLK-4: materializedClickPoint на захвате
+
+**Что сделано:**
+- **annotation-geometry.mjs / extension mirror:** `viewportPointToScreenshot`, `validatePointInImage`
+- **dom-context.js:** `buildScreenshotMeta` — приоритет clickPoint → `materializedClickPoint`, bbox fallback
+- **content.js:** `refreshEventBBox` пропускается для click/submit/menu_select
+- **tests/content-capture-context.test.mjs** — DPR=2, measured confidence, no querySelector
+
+**Что НЕ менялось:** отрисовка point-mode в редакторе (T-CLK-5), merge/LLM якорь (T-CLK-6)
+
+**Проверка:** `npm run typecheck && npm test` — 121 tests, 0 fail
+
+## TASK-35 — 2026-06-27 — T-CLK-3: immediate capture на клик
+
+**Что сделано:**
+- **stabilizer.js:** `CAPTURE_MODE`, `getCaptureMode` — click/submit/menu_select → IMMEDIATE, navigation → DEFERRED, modal_open/input/focus → без скрина; deferred ts = время события
+- **frame-capture.js:** `captureSingleFrame()` — один кадр, `candidates: []`, fallback +50 ms
+- **stabilizer-config.js:** `IMMEDIATE_CAPTURE_DELAY_MS=0`, `IMMEDIATE_CAPTURE_FALLBACK_MS=50`
+- **content.js / offscreen.js / recording-engine.js:** флаг `immediate` в цепочке захвата
+- **tests/stabilizer-immediate.test.mjs** — 5 тестов приёмки T-CLK-3
+
+**Что НЕ менялось:** materializedClickPoint (T-CLK-4), отключение refreshEventBBox, рендер аннотаций по clickPoint
+
+**Проверка:** `npm run typecheck && npm test` — 118 tests, 0 fail
+
+## TASK-34 — 2026-06-27 — T-CLK-1…2: clickPoint контракт и запись клика
+
+**Что сделано:**
+- **T-CLK-1:** `clickPoint` в `ElementContext`, `materializedClickPoint` в `Screenshot`, `annotationMode` в `ScreenshotAnnotation`; fixture `timeline.click-point.json`; тесты схемы
+- **T-CLK-2:** `resolveClickTarget` в `dom-context.js`; handler click/submit в `content.js`; `tests/content-click-point.test.mjs`
+
+**Что НЕ менялось:** stabilizer, immediate capture, рендер аннотаций (T-CLK-3+)
+
+**Проверка:** `npm run typecheck && npm test` — 113 tests, 0 fail
+
+## TASK-33 — 2026-06-27 — Railway: схема timeline принимает captureContext
+
+**Что сделано:**
+- `shared/timeline.schema.json` — `CaptureContext`, `captureContext`, `materializedBbox`, `annotationConfidence` у `Screenshot`; `coordinateSpace`, `confidence`, `materializedFromEventId` у `ScreenshotAnnotation`
+- `fixtures/timeline.capture-context.json`, тест `test_post_process_accepts_capture_context_timeline`
+- commit `64ef162`, деплой на Railway production
+
+**Что НЕ менялось:** расширение (уже писало новые поля локально)
+
+**Проверка:** `make check` зелёный; POST production с `captureContext` → 200 после rollout
+
+## TASK-32 — 2026-06-27 — CI: make check зелёный
+
+**Что сделано:**
+- ruff I001: сортировка импортов в `backend/main.py`, `backend/storage.py`
+- mypy: типы в `tests/backend/test_review_fixes.py`
+
+**Проверка:** `make check` — typecheck + 107 npm + ruff + mypy + 57 pytest, 0 fail
+
+## TASK-31 — 2026-06-27 — T-ANN-5…8: preview/canvas/regression/UX warning
+
+**Что сделано:**
+- **T-ANN-5:** `screenshotAnnotationToDisplayLayer`, refactor `ScreenshotAnnotator` (geometry layout, ResizeObserver, drag → `confidence: manual`), `annotation-editor-layout.test.mjs`
+- **T-ANN-6:** `drawAnnotationOnCanvas` через `resolveDecorationLayout`, `annotation-canvas-parity.test.mjs`
+- **T-ANN-7:** matrix 10 кейсов, `timeline.hidpi-scrolled.json`, `annotation-regression.test.mjs`, HiDPI тест в `annotation-t32`
+- **T-ANN-8:** `shouldShowAnnotationWarning`, жёлтая плашка в редакторе, `annotation-confidence-ui.test.mjs`, таблица coordinate spaces в `docs/CHROME_EXTENSION.md`
+
+**Что НЕ менялось:** backend, Playwright e2e
+
+**Проверка:** `npm run typecheck && npm test` — 107 тестов, 0 fail. `make check` — backend ruff I001 в `storage.py` (до эпика).
+
+## TASK-30 — 2026-06-27 — T-ANN-4: resolve аннотации только в screenshot pixels
+
+**Что сделано:**
+- `shared/annotation-utils.mjs`: `resolveStepAnnotation` — materializedBbox → `measured`, inference через geometry engine, всегда `coordinateSpace: screenshotPixels`, `confidence: inferred|measured`, валидация bbox
+- `scaleViewportBBoxToNatural` делегирует geometry; без viewport — passthrough только когда масштаб неизвестен
+- `editor/src/types.ts`, `editor/src/annotation.ts`: типы confidence/coordinateSpace, helper `annotationSuggestsNeedsReview`
+- Тесты: `annotation-inference.test.mjs`, обновлены `annotation-hidpi`, `annotation-t32`; fixture `timeline.mock.json` — legacy viewport 1440×900
+
+**Что НЕ менялось:** preview SVG/canvas (T-ANN-5), UX warning (T-ANN-8)
+
+**Проверка:** `npm run typecheck && npm test` — 81 тест, 0 fail
+
+## TASK-29 — 2026-06-27 — Плашка ● REC на странице
+
+**Проблема:** в popup написано «плашка REC внизу», но на странице её не было.
+
+**Причина:** `bridge.js` не экспортировал `CONTENT_OVERLAY_START` / `STOP_AND_PROCESS` — overlay слушал `undefined` вместо типа сообщения.
+
+**Что сделано:**
+- `bridge.js`: константы для overlay и кнопки «Стоп»
+- `popup.html/js`: во время обработки (Whisper) — другой текст, без обещания плашки
+- Тест: overlay появляется на `CONTENT_OVERLAY_START`
+
+**Проверка:** ↻ расширение → «Запись» → справа внизу на странице ● REC + таймер + «Стоп».
+
+## TASK-28 — 2026-06-27 — Стрелки на кнопку, не «узел» слева
+
+**Проблема:** стрелки/рамки не на кнопках; иногда «узел» линий в углу экрана.
+
+**Причины (не движение мыши):**
+- Аннотация брала modal/input вместо клика по кнопке (приоритет из TASK-27)
+- `refreshEventBBox` затирал bbox нулём, если кнопка уже скрыта модалкой
+- Старт стрелки уходил в отрицательные координаты → артефакты SVG
+
+**Что сделано:**
+- `annotation-utils.mjs`: привязка к `screenshot.eventId`, fallback click перед modal; clamp стрелки
+- `ScreenshotAnnotator.tsx`: clamp координат SVG-стрелки
+- `content.js` + `dom-context.js`: не пересчитывать bbox для скрытых элементов
+
+**Уже открытая запись:** смените скриншот в выпадающем списке и обратно (сбросит сохранённую аннотацию) или подвиньте рамку вручную. Новые записи — после ↻ расширения.
+
+## TASK-27 — 2026-06-27 — Стрелка/рамка на правильном элементе
+
+**Проблема:** «мажут» = стрелка указывает не туда, куда кликнули (не размытие картинки).
+
+**Что сделано:**
+- `annotation-utils.mjs`: масштаб bbox с учётом `object-fit: contain` (letterbox в превью редактора)
+- `ScreenshotAnnotator.tsx`: слой аннотации по реальной области картинки, не по всему `<img>`
+- `content.js`: `refreshEventBBox()` — пересчёт bbox в момент скрина (после стабилизации UI)
+- Приоритет аннотации: input/modal выше click, если в шаге несколько событий
+
+**Что НЕ менялось:** уже сохранённые записи — откройте шаг и подвиньте рамку вручную, или перезапишите.
+
+## TASK-26 — 2026-06-27 — Чёткие скриншоты (качество захвата)
+
+**Что сделано:**
+- `frame-capture.js`: `ImageCapture.grabFrame()` вместо только `<video>`→canvas; JPEG quality 0.85 → 0.95
+- `stabilizer-config.js`: `CAPTURE_MAX_WIDTH/HEIGHT` для tabCapture (до 3840×2160)
+- `offscreen.js`: запрос maxWidth/maxHeight у потока вкладки
+- Тест `tests/frame-capture-quality.test.mjs`
+
+**Что НЕ менялось:** формат `.jpg`, бэкенд, уже загруженные записи (остаются размытыми).
+
+**Проверка:** новая запись → скрины в редакторе читаемы (мелкий текст в таблицах).
+
+## TASK-21 — 2026-06-27 — Запись без пикера «что шарить» (tabCapture)
+
+**Что сделано:**
+- Захват вкладки через `chrome.tabCapture.getMediaStreamId` в service worker (без `getDisplayMedia` и пикера Chrome)
+- Offscreen получает `tabStreamId` и пишет видео вкладки + микрофон
+- Popup: передаёт `tabId`, не ждёт ответа синхронно; статус записи в `chrome.storage.session` + badge REC
+- Разрешение `tabCapture` в manifest; обновлены подсказки в popup
+
+**Что НЕ менялось:** бэкенд Railway, content script, upload flow.
+
+**Проверка владельца:**
+1. `chrome://extensions` → Training Recorder → ↻
+2. Обычный сайт → иконка → «Запись» → **«Разрешить»** в диалоге микрофона
+3. На иконке REC
+
+## TASK-25 — 2026-06-27 — Устойчивый workflow + плашка REC
+
+**Что сделано:**
+- Состояние `trWorkflow` в storage.local — popup всегда показывает текущий этап
+- Плашка ● REC + таймер + «Стоп» на странице (overlay)
+- Запись в offscreen (не умирает при закрытии окон)
+- Stop → upload → Whisper → редактор в service worker (не в popup)
+- Убраны скачивания скринов/файлов в Downloads из popup
+- Прогресс-бар: stopping / uploading / processing / ready
+
+---
+
+**Что сделано:**
+- Один клик «Запись» → окно с autostart → сразу диалоги Chrome (экран, потом микрофон), без кнопки «Начать запись»
+- После «Стоп»: авто-upload на сервер + открытие редактора (Whisper + инструкция)
+- Окно записи показывает: запись → отправка → «Готово» + ссылка на редактор
+- Popup закрывается после старта; при повторном открытии — блок «Последняя запись»
+
+**Как в прошлом проекте:** `Плагин для записи видео` — popup открывает recorder.html и сразу getDisplayMedia.
+
+---
+
+**Что сделано:**
+- Отдельное окно `recorder/recorder.html` — не закрывается само, держит потоки
+- По «Начать запись» сразу `getUserMedia` (микрофон) + `getDisplayMedia` (экран/вкладка) — стандартные модалки Chrome
+- Popup «Запись» только открывает окно записи с нужным `tabId`
+- `lib/media-permissions.js`, `lib/recording-engine.js`
+
+**Проверка:** chrome://extensions → ↻ → сайт → Запись → в окне «Начать запись» → разрешить микрофон + выбрать вкладку.
+
+---
+
+**Что сделано:**
+- Запрос микрофона перенесён в popup (пока есть клик пользователя), до старта записи в offscreen
+- Понятные сообщения об ошибке + подсказка про `chrome://settings/content/microphone`
+
+**Причина:** offscreen вызывал `getUserMedia` без user gesture → Chrome отклонял с «Permission dismissed».
+
+---
+
 ## TASK-20 — 2026-06-27 — Railway deploy (отдельно от Asya/VPS)
 
 **Что сделано:**

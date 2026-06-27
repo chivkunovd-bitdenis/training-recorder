@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node --test tests/timeline-contract.test.mjs tests/timeline-types.test.ts tests/extension-t02.test.mjs tests/extension-t11.test.mjs tests/content-t12.test.mjs tests/content-t13.test.mjs tests/stabilizer-t14.test.mjs tests/popup-t15.test.mjs tests/upload-t31.test.mjs tests/annotation-t32.test.mjs tests/annotation-hidpi.test.mjs",
+    "test": "node --test tests/timeline-contract.test.mjs tests/timeline-types.test.ts tests/extension-t02.test.mjs tests/extension-t11.test.mjs tests/content-t12.test.mjs tests/content-click-point.test.mjs tests/content-t13.test.mjs tests/content-capture-context.test.mjs tests/stabilizer-t14.test.mjs tests/stabilizer-immediate.test.mjs tests/popup-t15.test.mjs tests/upload-t31.test.mjs tests/annotation-t32.test.mjs tests/annotation-hidpi.test.mjs tests/annotation-inference.test.mjs tests/annotation-geometry.test.mjs tests/annotation-editor-layout.test.mjs tests/annotation-canvas-parity.test.mjs tests/annotation-click-point.test.mjs tests/annotation-wms-table.test.mjs tests/annotation-regression.test.mjs tests/annotation-confidence-ui.test.mjs tests/frame-capture-quality.test.mjs",
     "typecheck": "tsc --noEmit",
     "check": "npm run typecheck && npm test"
   },

@@ -115,6 +115,8 @@
       "confidence": "high",
       "width": 1440,
       "height": 900,
+      "viewportWidth": 1440,
+      "viewportHeight": 900,
       "candidates": ["scr-001a", "scr-001b"]
     },
     {

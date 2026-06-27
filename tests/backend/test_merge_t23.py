@@ -65,9 +65,9 @@ def test_each_preliminary_step_has_screenshot(fixtures_dir: Path) -> None:
     merged = merge_timeline(timeline)
     steps = merged["steps"]
 
-    assert steps[0]["screenshotId"] == "scr-002"
+    assert steps[0]["screenshotId"] == "scr-001"
     assert steps[0]["screenshotConfidence"] == "high"
-    assert steps[0]["screenshotCandidates"] == ["scr-002a", "scr-002b", "scr-002c"]
+    assert steps[0]["screenshotCandidates"] == ["scr-001a", "scr-001b"]
 
     assert steps[1]["screenshotId"] == "scr-002"
     assert steps[1]["screenshotConfidence"] == "high"

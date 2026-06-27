@@ -4,14 +4,18 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import Any, cast
 
 from fastapi.testclient import TestClient
 
 from backend.services.merge import apply_transcript_offset, merge_timeline
 
 
-def _load_timeline(fixtures_dir: Path) -> dict:
-    return json.loads((fixtures_dir / "timeline.mock.json").read_text(encoding="utf-8"))
+def _load_timeline(fixtures_dir: Path) -> dict[str, Any]:
+    return cast(
+        dict[str, Any],
+        json.loads((fixtures_dir / "timeline.mock.json").read_text(encoding="utf-8")),
+    )
 
 
 def test_apply_transcript_offset_shifts_and_is_pure() -> None:
