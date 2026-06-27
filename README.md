@@ -28,27 +28,21 @@ cd editor && npm install && npm run build
 Расширение: Chrome → «Загрузить распакованное» → папка `extension/`.  
 В popup укажите адрес бэкенда (`http://127.0.0.1:8000`).
 
-## Docker (сервер)
+## Docker (локально / свой сервер)
 
 ```bash
 cp .env.example .env
-# Обязательно: OPENAI_API_KEY
-# Опционально: BACKEND_PUBLIC_URL=https://your-domain.example
-
 docker compose up -d --build
-docker compose ps
 curl http://127.0.0.1:8000/health
 ```
 
-Данные сохраняются в Docker volumes `api_data` (SQLite) и `api_storage` (артефакты записей).
+## Прод: Railway (рекомендуется)
 
-### HTTPS через Caddy
+Отдельный проект на Railway — см. **`docs/RAILWAY_DEPLOY.md`**.
 
-```bash
-docker compose --profile with-caddy up -d --build
-```
+Кратко: GitHub repo `training-recorder` → Secrets `RAILWAY_API_TOKEN`, `OPENAI_API_KEY` → Variables `RAILWAY_PROJECT_ID`, `PROD_HEALTH_URL` → push `main`.
 
-Отредактируйте `Caddyfile` под свой домен.
+Расширение: в popup адрес бэкенда = `PROD_HEALTH_URL`.
 
 ## Переменные окружения
 
@@ -81,25 +75,3 @@ make check
 2. «Отправить и открыть редактор» → `POST /process` → вкладка `/editor/recording/{id}`.
 3. Редактор вызывает `POST /recording/{id}/generate` (нужен API key).
 4. Правки → «Сохранить» → экспорт MD / HTML / PDF.
-
-## Обновление на сервере (194.87.96.144)
-
-Первый раз:
-
-```bash
-git clone git@github.com:chivkunovd-bitdenis/training-recorder.git /opt/training-recorder
-cd /opt/training-recorder
-cp .env.example .env
-# OPENAI_API_KEY=…, BACKEND_PUBLIC_URL=http://194.87.96.144:8012, API_PORT=8012
-docker compose up -d --build
-curl http://127.0.0.1:8012/health
-```
-
-Каждое обновление:
-
-```bash
-cd /opt/training-recorder
-./scripts/deploy/prod-update.sh
-```
-
-Секреты только в `.env` на сервере, не в git.

@@ -1,5 +1,21 @@
 # TASKLOG
 
+## TASK-20 — 2026-06-27 — Railway deploy (отдельно от Asya/VPS)
+
+**Что сделано:**
+- `railway.json`, `scripts/railway_start.sh`, `scripts/deploy_railway.sh`, `.github/workflows/release.yml`
+- `docs/RAILWAY_DEPLOY.md` — свой проект Railway, GitHub Secrets/Variables
+- CI fix: `npm ci` перед `make check`
+- VPS `194.87.96.144`: контейнер остановлен (`docker compose down`)
+
+**Что откатили:**
+- Любые workflow/секреты в `asya-mvp`, привязка к project ID Аси
+
+**Что осталось владельцу:**
+- Создать **новый** проект Railway + account token → GitHub Secrets на `training-recorder` → push `main`
+
+---
+
 ## TASK-19 — 2026-06-27 — Deploy на VPS Цюрих (194.87.96.144:8012)
 
 **Что сделано:**
