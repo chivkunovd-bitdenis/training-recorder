@@ -5,7 +5,92 @@ import {
   hasStoredRecording,
 } from "./lib/recording-artifacts.js";
 
-const OFFSCREEN_URL = "offscreen.html";
+const OFFSCREEN_URL = chrome.runtime.getURL("offscreen.html");
+const OFFSCREEN_TARGET = "offscreen";
+
+/** @type {Promise<void> | null} */
+let offscreenCreating = null;
+
+async function hasOffscreenDocument() {
+  if (chrome.offscreen.hasDocument) {
+    return chrome.offscreen.hasDocument();
+  }
+
+  const contexts = await chrome.runtime.getContexts({
+    contextTypes: ["OFFSCREEN_DOCUMENT"],
+  });
+  return contexts.length > 0;
+}
+
+async function ensureOffscreenDocument() {
+  if (await hasOffscreenDocument()) {
+    await waitForOffscreenReady();
+    return;
+  }
+
+  if (!offscreenCreating) {
+    offscreenCreating = chrome.offscreen
+      .createDocument({
+        url: OFFSCREEN_URL,
+        reasons: ["USER_MEDIA", "DISPLAY_MEDIA"],
+        justification: "Запись видео активной вкладки для обучающей документации",
+      })
+      .finally(() => {
+        offscreenCreating = null;
+      });
+  }
+
+  await offscreenCreating;
+  await waitForOffscreenReady();
+}
+
+async function waitForOffscreenReady() {
+  const deadline = Date.now() + 5000;
+  while (Date.now() < deadline) {
+    try {
+      const response = await chrome.runtime.sendMessage({
+        type: MSG.OFFSCREEN_PING,
+        target: OFFSCREEN_TARGET,
+      });
+      if (response?.ok) {
+        return;
+      }
+    } catch {
+      // offscreen ещё грузится
+    }
+    await new Promise((resolve) => {
+      setTimeout(resolve, 50);
+    });
+  }
+  throw new Error("Offscreen-документ не ответил — перезагрузите расширение");
+}
+
+async function closeOffscreenDocument() {
+  if (await hasOffscreenDocument()) {
+    await chrome.offscreen.closeDocument();
+  }
+}
+
+async function sendToOffscreen(message) {
+  await ensureOffscreenDocument();
+  const response = await chrome.runtime.sendMessage({
+    ...message,
+    target: OFFSCREEN_TARGET,
+  });
+  if (response === undefined) {
+    throw new Error("Offscreen не ответил на команду");
+  }
+  return response;
+}
+
+function setRecordingBadge(active) {
+  if (active) {
+    chrome.action.setBadgeText({ text: "REC" });
+    chrome.action.setBadgeBackgroundColor({ color: "#d93025" });
+    return;
+  }
+  chrome.action.setBadgeText({ text: "" });
+}
 
 // Буфер артефактов в storage.local переживает навигацию вкладки (см. content.js).
 const bufferKeys = (recordingId) => [
@@ -36,33 +121,17 @@ async function clearBufferedArtifacts(recordingId) {
 /** @type {{ recordingId: string; tabId: number; t0: number | null } | null} */
 let activeSession = null;
 
-async function hasOffscreenDocument() {
-  if (chrome.offscreen.hasDocument) {
-    return chrome.offscreen.hasDocument();
+function isRestrictedTabUrl(url) {
+  if (!url) {
+    return true;
   }
-
-  const contexts = await chrome.runtime.getContexts({
-    contextTypes: ["OFFSCREEN_DOCUMENT"],
-  });
-  return contexts.length > 0;
-}
-
-async function ensureOffscreenDocument() {
-  if (await hasOffscreenDocument()) {
-    return;
-  }
-
-  await chrome.offscreen.createDocument({
-    url: OFFSCREEN_URL,
-    reasons: ["USER_MEDIA", "DISPLAY_MEDIA"],
-    justification: "Запись видео активной вкладки для обучающей документации",
-  });
-}
-
-async function closeOffscreenDocument() {
-  if (await hasOffscreenDocument()) {
-    await chrome.offscreen.closeDocument();
-  }
+  return (
+    url.startsWith("chrome://") ||
+    url.startsWith("chrome-extension://") ||
+    url.startsWith("edge://") ||
+    url.startsWith("about:") ||
+    url.startsWith("https://chrome.google.com/webstore")
+  );
 }
 
 async function getActiveTab() {
@@ -70,11 +139,13 @@ async function getActiveTab() {
   if (!tab?.id) {
     throw new Error("Не найдена активная вкладка");
   }
+  if (isRestrictedTabUrl(tab.url)) {
+    throw new Error(
+      "Нельзя записывать эту страницу (chrome://, Web Store и служебные вкладки). " +
+        "Откройте обычный сайт и нажмите «Запись» снова.",
+    );
+  }
   return tab;
-}
-
-async function sendToOffscreen(message) {
-  return chrome.runtime.sendMessage(message);
 }
 
 async function injectContentRecorder(tabId, payload) {
@@ -173,12 +244,20 @@ async function startRecording({ keepVideo = false } = {}) {
   } catch (error) {
     await sendToOffscreen({ type: MSG.OFFSCREEN_STOP }).catch(() => undefined);
     await closeOffscreenDocument();
+    setRecordingBadge(false);
+    const message = error instanceof Error ? error.message : String(error);
+    if (message.includes("Cannot access") || message.includes("extensions gallery")) {
+      throw new Error(
+        "Нельзя записать эту страницу. Откройте обычный сайт (не chrome:// и не Web Store).",
+      );
+    }
     throw error instanceof Error
       ? error
       : new Error("Не удалось запустить сбор событий на странице");
   }
 
   activeSession = { recordingId, tabId: tab.id, t0: startResponse.t0 ?? null };
+  setRecordingBadge(true);
 
   await chrome.storage.session.set({
     recordingActive: true,
@@ -211,6 +290,7 @@ async function stopRecording() {
   await clearBufferedArtifacts(recordingId);
 
   activeSession = null;
+  setRecordingBadge(false);
   await chrome.storage.session.set({
     recordingActive: false,
     recordingId: null,
@@ -250,6 +330,10 @@ async function stopRecording() {
 }
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+  if (message?.target === OFFSCREEN_TARGET) {
+    return false;
+  }
+
   if (message.type === MSG.START_RECORDING) {
     startRecording({ keepVideo: Boolean(message.keepVideo) })
       .then((result) => sendResponse(result))

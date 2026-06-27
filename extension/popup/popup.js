@@ -151,7 +151,18 @@ startBtn.addEventListener("click", async () => {
     }
   } catch (error) {
     setRecordingUi(false);
-    setError(error instanceof Error ? error.message : String(error));
+    const raw = error instanceof Error ? error.message : String(error);
+    if (raw.includes("Receiving end does not exist")) {
+      setError(
+        "Расширение не успело подготовиться. Обновите его на chrome://extensions/ (кнопка ↻) и попробуйте снова.",
+      );
+      return;
+    }
+    if (raw.includes("Permission dismissed") || raw.includes("NotAllowedError")) {
+      setError("Нужно разрешить захват вкладки и микрофон в диалоге Chrome.");
+      return;
+    }
+    setError(raw);
   }
 });
 

@@ -257,6 +257,18 @@ async function stopRecording() {
 }
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+  if (message?.target && message.target !== "offscreen") {
+    return false;
+  }
+  if (message?.target !== "offscreen" && message.type?.startsWith("OFFSCREEN_")) {
+    return false;
+  }
+
+  if (message.type === MSG.OFFSCREEN_PING) {
+    sendResponse({ ok: true });
+    return true;
+  }
+
   if (message.type === MSG.OFFSCREEN_START) {
     startRecording(message.payload)
       .then(() =>
