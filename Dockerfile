@@ -1,9 +1,11 @@
 FROM node:20-alpine AS editor-build
 
+WORKDIR /app
+COPY editor/package.json editor/package-lock.json ./editor/
+RUN cd editor && npm ci
+COPY editor/ ./editor/
+COPY shared/ ./shared/
 WORKDIR /app/editor
-COPY editor/package.json editor/package-lock.json ./
-RUN npm ci
-COPY editor/ ./
 RUN npm run build
 
 FROM python:3.11-slim-bookworm
