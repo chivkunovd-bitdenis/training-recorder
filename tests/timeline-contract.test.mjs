@@ -15,6 +15,9 @@ const schema = JSON.parse(
 const mockTimeline = JSON.parse(
   readFileSync(join(root, "fixtures/timeline.mock.json"), "utf8"),
 );
+const captureContextTimeline = JSON.parse(
+  readFileSync(join(root, "fixtures/timeline.capture-context.json"), "utf8"),
+);
 
 const ajv = new Ajv2020({ allErrors: true, strict: false });
 addFormats(ajv);
@@ -37,4 +40,43 @@ test("невалидный timeline отклоняется схемой", () => 
   const valid = validate(invalid);
   assert.equal(valid, false);
   assert.ok(validate.errors?.length);
+});
+
+test("fixtures/timeline.capture-context.json проходит валидацию с captureContext и coordinateSpace", () => {
+  const valid = validate(captureContextTimeline);
+  if (!valid) {
+    assert.fail(
+      `Схема отклонила capture-context fixture: ${JSON.stringify(validate.errors, null, 2)}`,
+    );
+  }
+  assert.equal(valid, true);
+
+  const screenshot = captureContextTimeline.screenshots[0];
+  assert.deepEqual(screenshot.captureContext, {
+    viewportWidth: 1280,
+    viewportHeight: 720,
+    devicePixelRatio: 2,
+    scrollX: 0,
+    scrollY: 480,
+  });
+  assert.equal(screenshot.width, 2560);
+  assert.equal(screenshot.height, 1440);
+
+  const annotation =
+    captureContextTimeline.generatedDoc.steps[0].screenshotAnnotation;
+  assert.equal(annotation.coordinateSpace, "screenshotPixels");
+});
+
+test("screenshotAnnotation с coordinateSpace viewport отклоняется схемой", () => {
+  const invalid = structuredClone(captureContextTimeline);
+  invalid.generatedDoc.steps[0].screenshotAnnotation.coordinateSpace =
+    "viewport";
+
+  const valid = validate(invalid);
+  assert.equal(valid, false);
+  assert.ok(
+    validate.errors?.some((e) =>
+      e.instancePath.includes("coordinateSpace"),
+    ),
+  );
 });

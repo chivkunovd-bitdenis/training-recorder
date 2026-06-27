@@ -60,6 +60,16 @@ export interface RecEvent {
 
 export type ScreenshotConfidence = "high" | "low";
 
+/** Паспорт кадра: viewport CSS → пиксели bitmap скриншота. */
+export interface CaptureContext {
+  viewportWidth: number;
+  viewportHeight: number;
+  devicePixelRatio: number;
+  scrollX?: number;
+  scrollY?: number;
+  visualViewportScale?: number;
+}
+
 export interface Screenshot {
   id: string;
   ts: number;
@@ -67,6 +77,15 @@ export interface Screenshot {
   confidence: ScreenshotConfidence;
   width: number;
   height: number;
+  /** @deprecated Prefer captureContext; kept for backward compatibility. */
+  viewportWidth?: number;
+  /** @deprecated Prefer captureContext; kept for backward compatibility. */
+  viewportHeight?: number;
+  captureContext?: CaptureContext;
+  /** Bbox целевого элемента в пикселях скриншота, materialize при захвате. */
+  materializedBbox?: BoundingBox;
+  /** Уверенность materialize bbox на захвате. */
+  annotationConfidence?: "measured" | "invalid";
   candidates?: string[];
 }
 
@@ -83,9 +102,18 @@ export interface TranscriptSegment {
   words?: TranscriptWord[];
 }
 
+export type AnnotationCoordinateSpace = "screenshotPixels";
+
+export type AnnotationConfidence = "measured" | "inferred" | "manual";
+
 export interface ScreenshotAnnotation {
   enabled: boolean;
   bbox: BoundingBox;
+  /** Единственная система координат для рендера аннотаций. */
+  coordinateSpace?: AnnotationCoordinateSpace;
+  confidence?: AnnotationConfidence;
+  /** Audit trail: из какого события materialize bbox. */
+  materializedFromEventId?: string;
   showArrow?: boolean;
   showStepNumber?: boolean;
 }

@@ -63,6 +63,19 @@
         "keypress_enter"
       ]
     },
+    "CaptureContext": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["viewportWidth", "viewportHeight", "devicePixelRatio"],
+      "properties": {
+        "viewportWidth": { "type": "integer", "minimum": 1 },
+        "viewportHeight": { "type": "integer", "minimum": 1 },
+        "devicePixelRatio": { "type": "number", "minimum": 0.25 },
+        "scrollX": { "type": "number", "minimum": 0 },
+        "scrollY": { "type": "number", "minimum": 0 },
+        "visualViewportScale": { "type": "number", "minimum": 0.25 }
+      }
+    },
     "BoundingBox": {
       "type": "object",
       "additionalProperties": false,
@@ -138,6 +151,12 @@
         "height": { "type": "integer", "minimum": 1 },
         "viewportWidth": { "type": "integer", "minimum": 1 },
         "viewportHeight": { "type": "integer", "minimum": 1 },
+        "captureContext": { "$ref": "#/$defs/CaptureContext" },
+        "materializedBbox": { "$ref": "#/$defs/BoundingBox" },
+        "annotationConfidence": {
+          "type": "string",
+          "enum": ["measured", "invalid"]
+        },
         "candidates": {
           "type": "array",
           "items": { "type": "string", "minLength": 1 }
@@ -203,6 +222,15 @@
       "properties": {
         "enabled": { "type": "boolean" },
         "bbox": { "$ref": "#/$defs/BoundingBox" },
+        "coordinateSpace": {
+          "type": "string",
+          "enum": ["screenshotPixels"]
+        },
+        "confidence": {
+          "type": "string",
+          "enum": ["measured", "inferred", "manual"]
+        },
+        "materializedFromEventId": { "type": "string", "minLength": 1 },
         "showArrow": { "type": "boolean" },
         "showStepNumber": { "type": "boolean" }
       }

@@ -55,6 +55,24 @@ def test_post_process_accepts_mock_artifacts(
         session.close()
 
 
+def test_post_process_accepts_capture_context_timeline(
+    client: TestClient,
+    fixtures_dir: Path,
+) -> None:
+    timeline_bytes = (fixtures_dir / "timeline.capture-context.json").read_bytes()
+    response = client.post(
+        "/process",
+        files={
+            "mic": ("mic.webm", b"mock-mic-webm-content", "audio/webm"),
+            "timeline": ("timeline.json", timeline_bytes, "application/json"),
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["recordingId"] == "rec-capture-context-demo"
+
+
 def test_post_process_rejects_invalid_timeline(client: TestClient) -> None:
     invalid_timeline = json.dumps({"meta": {"recordingId": "broken"}}).encode("utf-8")
     response = client.post(
