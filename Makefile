@@ -1,12 +1,15 @@
 .PHONY: check typecheck test backend-check backend-install run smoke docker-build docker-smoke deploy-railway
 
-check: typecheck test backend-check
+check: typecheck test editor-build backend-check
 
 typecheck:
 	npm run typecheck
 
 test:
 	npm test
+
+editor-build:
+	@test -f editor/dist/index.html || (cd editor && npm ci && npm run build)
 
 backend-install:
 	python3 -m pip install -r backend/requirements.txt -r backend/requirements-dev.txt
