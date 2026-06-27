@@ -12,7 +12,7 @@
 
 **Проверка:** `make check` — 132 npm + 61 pytest, ruff, mypy green
 
-**Git:** commit `7e1ff35` → push `main` (GitHub Actions Release: check + Railway deploy)
+**Git:** `7e1ff35` (эпик) → `0526c50` (CI .mjs) → `436c7c9` (CI editor build); push `main`; Release workflow ✓ deploy ✓ health ✓
 
 ## TASK-39 — 2026-06-27 — T-CLK-7: WMS regression (таблица, clickPoint vs cssPath)
 
