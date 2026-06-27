@@ -42,41 +42,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Configure Railway variables
+      - name: Railway deploy (GraphQL)
         env:
           RAILWAY_API_TOKEN: ${{ secrets.RAILWAY_API_TOKEN }}
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-        run: |
-          set -euo pipefail
-          unset RAILWAY_TOKEN || true
-          npm install -g @railway/cli@5.23.1
-          public_url="${{ vars.PROD_HEALTH_URL }}"
-          args=(
-            --service "${{ vars.RAILWAY_SERVICE || 'training-recorder' }}"
-            --environment "${{ vars.RAILWAY_ENVIRONMENT || 'production' }}"
-            --project "${{ vars.RAILWAY_PROJECT_ID }}"
-          )
-          railway variables set \
-            OPENAI_API_KEY="$OPENAI_API_KEY" \
-            DATABASE_URL="sqlite:////data/training_recorder.db" \
-            STORAGE_ROOT="/data/storage" \
-            GENERATE_MODEL="gpt-4o" \
-            ${public_url:+BACKEND_PUBLIC_URL="$public_url"} \
-            "${args[@]}"
-
-      - name: Railway deploy
-        env:
-          RAILWAY_API_TOKEN: ${{ secrets.RAILWAY_API_TOKEN }}
-        run: |
-          set -euo pipefail
-          unset RAILWAY_TOKEN || true
-          npm install -g @railway/cli@5.23.1
-          railway up \
-            --detach \
-            --yes \
-            --service "${{ vars.RAILWAY_SERVICE || 'training-recorder' }}" \
-            --environment "${{ vars.RAILWAY_ENVIRONMENT || 'production' }}" \
-            --project "${{ vars.RAILWAY_PROJECT_ID }}"
+          RAILWAY_PROJECT_ID: ${{ vars.RAILWAY_PROJECT_ID }}
+          RAILWAY_ENVIRONMENT_ID: ${{ vars.RAILWAY_ENVIRONMENT_ID }}
+          RAILWAY_SERVICE_ID: ${{ vars.RAILWAY_SERVICE_ID }}
+        run: bash scripts/railway_graphql_deploy.sh
 
       - name: Health smoke
         run: |

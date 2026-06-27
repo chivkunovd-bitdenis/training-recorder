@@ -12,19 +12,20 @@ Workflow: `.github/workflows/release.yml`
 
 ## Один раз: Railway + GitHub
 
-### 1. Новый проект на Railway
+### 1. Проект на Railway
 
-Railway → **New Project** → **Empty Project** → имя, например `training-recorder`.
+На **free tier** лимит — 2 проекта. Сервис `training-recorder` живёт в проекте **`quickloom-api`** (отдельно от Asya `screen-recorder-backend`).
 
-В проекте: **New Service** → **Empty Service** → имя `training-recorder`.
+Сервис: `training-recorder`  
+Публичный URL: `https://training-recorder-production.up.railway.app`
 
-Включите **Public Networking** → сгенерируйте домен (например `training-recorder-production.up.railway.app`).
+### 2. API token
 
-Опционально: **Volume** → mount `/data` (SQLite + файлы записей переживают redeploy).
+Railway → **Account Settings** → **Tokens** → Create.
 
-### 2. Account token
+**Важно:** workspace-scoped token работает через **GraphQL API**, но `railway` CLI может отвечать `Unauthorized` (известный баг Railway). CI использует `scripts/railway_graphql_deploy.sh`.
 
-Railway → **Account Settings** → **Tokens** → Create (account token, не OAuth из `railway login`).
+Для CLI локально: создайте token с **No workspace** (account-scoped).
 
 ### 3. GitHub (repo `training-recorder`)
 
@@ -39,10 +40,11 @@ Railway → **Account Settings** → **Tokens** → Create (account token, не 
 
 | Имя | Значение |
 |-----|----------|
-| `RAILWAY_PROJECT_ID` | ID проекта из Railway (Settings → General) |
+| `RAILWAY_PROJECT_ID` | `da429808-c8bb-4198-bc46-25646f97e506` (проект quickloom-api) |
+| `RAILWAY_ENVIRONMENT_ID` | `c088d831-ecd6-46ac-9a73-c2193fb07664` |
+| `RAILWAY_SERVICE_ID` | `fa9e0bcb-3cf7-4549-a035-d9abcf283815` |
 | `RAILWAY_SERVICE` | `training-recorder` |
-| `RAILWAY_ENVIRONMENT` | `production` |
-| `PROD_HEALTH_URL` | `https://…up.railway.app` (без `/health`) |
+| `PROD_HEALTH_URL` | `https://training-recorder-production.up.railway.app` |
 
 ### 4. Первый деплой
 
