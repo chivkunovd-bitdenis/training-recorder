@@ -12,6 +12,8 @@
 
 **Проверка:** `make check` — 132 npm + 61 pytest, ruff, mypy green
 
+**Git:** commit `7e1ff35` → push `main` (GitHub Actions Release: check + Railway deploy)
+
 ## TASK-39 — 2026-06-27 — T-CLK-7: WMS regression (таблица, clickPoint vs cssPath)
 
 **Что сделано:**
