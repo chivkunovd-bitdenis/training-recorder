@@ -1,4 +1,4 @@
-.PHONY: check typecheck test backend-check backend-install run smoke docker-build docker-smoke
+.PHONY: check typecheck test backend-check backend-install run smoke docker-build docker-smoke deploy-railway
 
 check: typecheck test backend-check
 
@@ -29,3 +29,6 @@ docker-smoke: docker-build
 	docker compose up -d --wait
 	curl -fsS http://127.0.0.1:8000/health
 	docker compose down
+
+deploy-railway:
+	bash scripts/deploy_railway.sh

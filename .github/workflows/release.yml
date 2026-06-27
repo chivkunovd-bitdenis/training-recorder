@@ -1,0 +1,97 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      skip_deploy:
+        description: "Только проверки, без деплоя"
+        type: boolean
+        default: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install backend deps
+        run: python -m pip install -r backend/requirements.txt -r backend/requirements-dev.txt
+
+      - name: make check
+        run: make check
+
+  deploy:
+    needs: check
+    if: github.event_name != 'pull_request' && !(github.event_name == 'workflow_dispatch' && inputs.skip_deploy)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure Railway variables
+        env:
+          RAILWAY_API_TOKEN: ${{ secrets.RAILWAY_API_TOKEN }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          set -euo pipefail
+          unset RAILWAY_TOKEN || true
+          npm install -g @railway/cli@5.23.1
+          public_url="${{ vars.PROD_HEALTH_URL }}"
+          args=(
+            --service "${{ vars.RAILWAY_SERVICE || 'training-recorder' }}"
+            --environment "${{ vars.RAILWAY_ENVIRONMENT || 'production' }}"
+            --project "${{ vars.RAILWAY_PROJECT_ID }}"
+          )
+          railway variables set \
+            OPENAI_API_KEY="$OPENAI_API_KEY" \
+            DATABASE_URL="sqlite:////data/training_recorder.db" \
+            STORAGE_ROOT="/data/storage" \
+            GENERATE_MODEL="gpt-4o" \
+            ${public_url:+BACKEND_PUBLIC_URL="$public_url"} \
+            "${args[@]}"
+
+      - name: Railway deploy
+        env:
+          RAILWAY_API_TOKEN: ${{ secrets.RAILWAY_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          unset RAILWAY_TOKEN || true
+          npm install -g @railway/cli@5.23.1
+          railway up \
+            --detach \
+            --yes \
+            --service "${{ vars.RAILWAY_SERVICE || 'training-recorder' }}" \
+            --environment "${{ vars.RAILWAY_ENVIRONMENT || 'production' }}" \
+            --project "${{ vars.RAILWAY_PROJECT_ID }}"
+
+      - name: Health smoke
+        run: |
+          set -euo pipefail
+          url="${{ vars.PROD_HEALTH_URL }}"
+          if [[ -z "${url}" ]]; then
+            echo "PROD_HEALTH_URL not set — skip smoke"
+            exit 0
+          fi
+          health="${url%/}/health"
+          for attempt in $(seq 1 36); do
+            if curl -sfSL --max-time 15 "${health}"; then
+              echo ""
+              echo "OK: ${health}"
+              exit 0
+            fi
+            echo "not ready (${attempt}/36), sleep 10s..."
+            sleep 10
+          done
+          echo "Health check failed: ${health}" >&2
+          exit 1

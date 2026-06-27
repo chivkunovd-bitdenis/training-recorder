@@ -4,6 +4,7 @@ node_modules/
 editor/dist/
 *.db
 .env
+.env.railway
 __pycache__/
 *.pyc
 .pytest_cache/
