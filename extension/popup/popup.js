@@ -27,7 +27,7 @@ if (
   throw new Error("Popup markup is invalid");
 }
 
-const DEFAULT_BACKEND_URL = "http://127.0.0.1:8000";
+const DEFAULT_BACKEND_URL = "https://training-recorder-production.up.railway.app";
 
 /** @type {boolean} */
 let isRecording = false;
