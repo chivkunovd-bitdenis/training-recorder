@@ -1,5 +1,22 @@
 # TASKLOG
 
+## TASK-19 — 2026-06-27 — Deploy на VPS Цюрих (194.87.96.144:8012)
+
+**Что сделано:**
+- GitHub: `chivkunovd-bitdenis/training-recorder` (private), push `main` `17bbe8a`
+- `Dockerfile` — multi-stage (сборка editor внутри Docker + `shared/` для annotation-utils)
+- `scripts/deploy/prod-update.sh` — git pull + docker compose rebuild
+- Сервер `/opt/training-recorder`: `.env` (OPENAI_API_KEY, BACKEND_PUBLIC_URL, API_PORT=8012), `docker compose up -d --build`
+
+**Что НЕ менялось:** расширение Chrome (ставится локально, адрес бэкенда в popup); HTTPS/домен (пока HTTP :8012).
+
+**Проверка:**
+- `curl http://194.87.96.144:8012/health` → `{"status":"ok"}`
+- `GET /editor/recording/test` → HTTP 200
+- `docker compose ps` — api Up, порт 8012
+
+---
+
 ## TASK-18 — 2026-06-26 — Release: Docker + smoke MVP
 
 **Что сделано:**
