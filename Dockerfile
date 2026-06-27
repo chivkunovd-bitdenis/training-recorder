@@ -1,3 +1,11 @@
+FROM node:20-alpine AS editor-build
+
+WORKDIR /app/editor
+COPY editor/package.json editor/package-lock.json ./
+RUN npm ci
+COPY editor/ ./
+RUN npm run build
+
 FROM python:3.11-slim-bookworm
 
 WORKDIR /app
@@ -12,7 +20,7 @@ RUN pip install --no-cache-dir -r backend/requirements.txt
 
 COPY backend/ backend/
 COPY shared/ shared/
-COPY editor/dist/ editor/dist/
+COPY --from=editor-build /app/editor/dist editor/dist/
 
 RUN mkdir -p backend/data backend/storage
 

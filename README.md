@@ -82,12 +82,24 @@ make check
 3. Редактор вызывает `POST /recording/{id}/generate` (нужен API key).
 4. Правки → «Сохранить» → экспорт MD / HTML / PDF.
 
-## Обновление на сервере
+## Обновление на сервере (194.87.96.144)
+
+Первый раз:
 
 ```bash
-git pull
+git clone git@github.com:chivkunovd-bitdenis/training-recorder.git /opt/training-recorder
+cd /opt/training-recorder
+cp .env.example .env
+# OPENAI_API_KEY=…, BACKEND_PUBLIC_URL=http://194.87.96.144:8012, API_PORT=8012
 docker compose up -d --build
-docker compose ps
+curl http://127.0.0.1:8012/health
+```
+
+Каждое обновление:
+
+```bash
+cd /opt/training-recorder
+./scripts/deploy/prod-update.sh
 ```
 
 Секреты только в `.env` на сервере, не в git.
